@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: devconnect-redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-devpassword}"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    container_name: devconnect-meilisearch
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-devmasterkey}
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili-data:/meili_data
+
+volumes:
+  redis-data:
+  meili-data:
