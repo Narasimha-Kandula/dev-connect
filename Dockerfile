@@ -23,4 +23,4 @@ COPY --from=builder /app/src/prisma ./src/prisma
 
 USER nestjs
 EXPOSE 4000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=src/prisma/schema.prisma && node dist/main"]
+CMD ["node", "dist/main"]
