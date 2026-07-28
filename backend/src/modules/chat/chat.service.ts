@@ -1,11 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class ChatService {
   constructor(private prisma: PrismaService) {}
 
-  async listConversations(userId: string) {
+  async listConversations(userId: string, cursor?: string) {
     return this.prisma.conversation.findMany({
       where: { members: { some: { userId } } },
       include: {
@@ -13,6 +14,8 @@ export class ChatService {
         messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 50,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
   }
 

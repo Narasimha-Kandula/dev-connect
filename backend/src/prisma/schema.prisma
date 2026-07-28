@@ -189,6 +189,7 @@ model OAuthAccount {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerId])
+  @@index([userId])
   @@map("oauth_accounts")
 }
 
@@ -204,6 +205,8 @@ model Session {
 
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([expiresAt])
   @@map("sessions")
 }
 
@@ -322,6 +325,7 @@ model Match {
   conversation Conversation?
 
   @@unique([userOneId, userTwoId])
+  @@index([status])
   @@map("matches")
 }
 
@@ -368,6 +372,7 @@ model BlockedUser {
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
+  @@index([blockedId, blockerId])
   @@map("blocked_users")
 }
 
@@ -400,6 +405,7 @@ model ConversationMember {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
+  @@index([conversationId])
   @@map("conversation_members")
 }
 
@@ -484,6 +490,7 @@ model ProjectMember {
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, userId])
+  @@index([projectId])
   @@map("project_members")
 }
 
@@ -499,6 +506,8 @@ model Task {
 
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([projectId])
+  @@index([assigneeId])
   @@map("tasks")
 }
 

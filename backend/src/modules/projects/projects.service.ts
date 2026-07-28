@@ -136,13 +136,17 @@ export class ProjectsService {
     return { success: true };
   }
 
-  createTask(projectId: string, title: string, description?: string, assigneeId?: string, dueDate?: string) {
+  async createTask(projectId: string, userId: string, title: string, description?: string, assigneeId?: string, dueDate?: string) {
+    await this.assertMember(projectId, userId);
     return this.prisma.task.create({
       data: { projectId, title, description, assigneeId, dueDate: dueDate ? new Date(dueDate) : undefined },
     });
   }
 
-  updateTaskStatus(taskId: string, status: string) {
+  async updateTaskStatus(taskId: string, userId: string, status: string) {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) throw new NotFoundException('Task not found');
+    await this.assertMember(task.projectId, userId);
     return this.prisma.task.update({ where: { id: taskId }, data: { status } });
   }
 
@@ -150,6 +154,13 @@ export class ProjectsService {
     return this.prisma.sharedFile.create({
       data: { projectId, uploaderId, fileName, fileUrl, fileType, sizeBytes },
     });
+  }
+
+  private async assertMember(projectId: string, userId: string) {
+    const member = await this.prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId } },
+    });
+    if (!member) throw new ForbiddenException('You are not a member of this project.');
   }
 
   private async assertOwner(projectId: string, userId: string) {

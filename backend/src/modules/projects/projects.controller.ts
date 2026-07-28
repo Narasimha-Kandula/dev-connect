@@ -62,19 +62,20 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/tasks')
   createTask(
+    @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body('title') title: string,
     @Body('description') description?: string,
     @Body('assigneeId') assigneeId?: string,
     @Body('dueDate') dueDate?: string,
   ) {
-    return this.projectsService.createTask(id, title, description, assigneeId, dueDate);
+    return this.projectsService.createTask(id, userId, title, description, assigneeId, dueDate);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('tasks/:taskId')
-  updateTask(@Param('taskId') taskId: string, @Body('status') status: string) {
-    return this.projectsService.updateTaskStatus(taskId, status);
+  updateTask(@CurrentUser('id') userId: string, @Param('taskId') taskId: string, @Body('status') status: string) {
+    return this.projectsService.updateTaskStatus(taskId, userId, status);
   }
 
   @UseGuards(JwtAuthGuard)

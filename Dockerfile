@@ -22,7 +22,9 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/src/prisma ./src/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY backend/start.sh ./
+RUN chmod +x start.sh
 
 USER nestjs
 EXPOSE 4000
-CMD ["node", "dist/main"]
+CMD ["./start.sh"]
