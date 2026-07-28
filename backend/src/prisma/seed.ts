@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -19,7 +20,8 @@ async function main() {
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!existingAdmin) {
     console.log('Creating default administrator...');
-    const passwordHash = await bcrypt.hash('ChangeMe123!', 12);
+    const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(4).toString('hex');
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
     await prisma.user.create({
       data: {
         email: adminEmail,
@@ -29,6 +31,12 @@ async function main() {
         profile: { create: { displayName: 'Platform Admin', headline: 'Managing the DevConnect network' } },
       },
     });
+    console.log(`\n  ┌──────────────────────────────────────────────┐`);
+    console.log(`  │  ADMIN ACCOUNT CREATED                       │`);
+    console.log(`  │  Email:    ${adminEmail.padEnd(36)}│`);
+    console.log(`  │  Password: ${adminPassword.padEnd(36)}│`);
+    console.log(`  │  CHANGE THIS PASSWORD IMMEDIATELY AFTER LOGIN│`);
+    console.log(`  └──────────────────────────────────────────────┘\n`);
   }
 
   const sampleUsers = [

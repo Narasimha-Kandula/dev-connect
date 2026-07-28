@@ -8,7 +8,7 @@ npm install
 cp .env.example .env   # fill in your real Supabase/Redis/Resend values
 npm run prisma:generate
 npm run prisma:migrate -- --name init
-npm run seed             # creates sample skills + admin@devconnect.dev / ChangeMe123!
+npm run seed             # creates sample skills + admin@devconnect.dev (password printed to console)
 npm run start:dev
 ```
 

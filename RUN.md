@@ -40,10 +40,10 @@ Starts Redis (`:6379`) and Meilisearch (`:7700`).
 cd backend
 npx prisma generate --schema=src/prisma/schema.prisma
 npx prisma db push --schema=src/prisma/schema.prisma --accept-data-loss
-npm run seed
+ADMIN_PASSWORD=your-secure-admin-password npm run seed
 ```
 
-Creates tables, seeds skills + admin user (`admin@devconnect.dev` / `ChangeMe123!`).
+Creates tables, seeds skills + admin user (`admin@devconnect.dev`). Password is printed to console on first run, or use `ADMIN_PASSWORD` env var to set it explicitly.
 
 ## 4. Start Backend
 

@@ -6,7 +6,7 @@ import asyncio, json, time, sys, subprocess, os, signal
 
 API = "http://localhost:4000/api/v1"
 ADMIN_EMAIL = "admin@devconnect.dev"
-ADMIN_PASS = "ChangeMe123!"
+ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "") or "ChangeMe123!"
 BACKEND_DIR = "/home/narasimha/Downloads/DevConnect/backend"
 
 async def login():

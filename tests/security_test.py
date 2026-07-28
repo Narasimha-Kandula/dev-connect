@@ -2,11 +2,11 @@
 """
 Security Testing: XSS, token theft, rate limiting, input validation.
 """
-import asyncio, json, time, sys
+import asyncio, json, time, sys, os
 
 API = "http://localhost:4000/api/v1"
 ADMIN_EMAIL = "admin@devconnect.dev"
-ADMIN_PASS = "ChangeMe123!"
+ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "") or "ChangeMe123!"
 
 async def test_xss_input():
     """Test XSS resistance in input fields."""

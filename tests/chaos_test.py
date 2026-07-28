@@ -2,11 +2,11 @@
 """
 Chaos Testing: System resilience under failure conditions.
 """
-import asyncio, json, time, sys, subprocess
+import asyncio, json, time, sys, subprocess, os
 
 API = "http://localhost:4000/api/v1"
 ADMIN_EMAIL = "admin@devconnect.dev"
-ADMIN_PASS = "ChangeMe123!"
+ADMIN_PASS = os.environ.get("ADMIN_PASSWORD", "") or "ChangeMe123!"
 
 async def login():
     import httpx
