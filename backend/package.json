@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "DevConnect API — NestJS backend",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate --schema=src/prisma/schema.prisma && nest build",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

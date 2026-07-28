@@ -5,41 +5,42 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginInput } from '@/lib/validations';
 
 function getOAuthUrl(provider: 'github' | 'google') {
-  const base = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/oauth`;
-  const redirect = `${window.location.origin}/auth/callback?provider=${provider}`;
+  const githubId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+  const googleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   if (provider === 'github') {
-    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-    if (!clientId) return null;
-    return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email`;
+    if (!githubId) return null;
+    const redirect = `${window.location.origin}/auth/callback`;
+    return `https://github.com/login/oauth/authorize?client_id=${githubId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email`;
   }
 
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  if (!clientId) return null;
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile`;
+  if (!googleId) return null;
+  const redirect = `${window.location.origin}/auth/google/callback`;
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile`;
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const loginStore = useAuthStore((s) => s.login);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  async function onSubmit(data: LoginInput) {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.post<{ accessToken: string; refreshToken: string }>(
-        '/auth/login',
-        { email, password },
-      );
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      await loginStore(data.email, data.password);
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -65,26 +66,24 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground">Log in to continue building.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Email</label>
               <input
                 type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register('email')}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
+              {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Password</label>
               <input
                 type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register('password')}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
+              {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
             </div>
 
             {error && <p className="text-sm text-danger">{error}</p>}

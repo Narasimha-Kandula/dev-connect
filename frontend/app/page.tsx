@@ -5,11 +5,10 @@ import { Card, CardContent } from '@/components/ui/card';
 export default function HomePage() {
   return (
     <div>
-      {/* Hero */}
       <section className="mx-auto max-w-7xl px-6 pt-20 pb-24 text-center">
         <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-muted px-4 py-1.5 text-sm text-muted-foreground">
-          <span className="h-2 w-2 rounded-full bg-success" />
-          2,341 developers building right now
+          <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+          <span id="live-counter">2,341</span> developers building right now
         </div>
 
         <h1 className="mx-auto max-w-3xl text-4xl font-extrabold tracking-tight sm:text-6xl">
@@ -30,19 +29,26 @@ export default function HomePage() {
             Start Building Free <ArrowRight size={18} />
           </Link>
           <Link
-            href="/how-it-works"
+            href="/demo"
             className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-base font-semibold hover:bg-muted"
           >
             Explore Product Demo
           </Link>
         </div>
 
-        <p className="mt-6 text-sm text-muted-foreground">
-          Trusted by 500+ engineering teams
-        </p>
+        <div className="mt-10 flex items-center justify-center gap-8 text-sm text-muted-foreground">
+          <span>Trusted by 500+ engineering teams</span>
+          <span className="hidden sm:inline opacity-30">|</span>
+          <div className="hidden items-center gap-6 sm:flex">
+            {['Vercel', 'Railway', 'Supabase', 'Netlify'].map((name) => (
+              <span key={name} className="font-semibold opacity-50 hover:opacity-80 transition-opacity">
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
-      {/* Value Pillars */}
       <section className="mx-auto max-w-7xl px-6 pb-24">
         <div className="grid gap-6 sm:grid-cols-3">
           <Card>
@@ -75,7 +81,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How it works */}
       <section className="mx-auto max-w-7xl px-6 pb-24">
         <h2 className="mb-10 text-center text-3xl font-bold">
           From Profile to Partnership in Minutes
@@ -93,11 +98,21 @@ export default function HomePage() {
             </div>
           ))}
         </div>
+        <div className="mt-8 text-center">
+          <Link
+            href="/how-it-works"
+            className="text-sm text-muted-foreground underline hover:text-foreground"
+          >
+            See detailed walkthrough →
+          </Link>
+        </div>
       </section>
 
-      {/* Final CTA */}
       <section className="gradient-brand mx-6 mb-16 rounded-2xl px-6 py-16 text-center text-white sm:mx-auto sm:max-w-5xl">
         <h2 className="text-3xl font-bold">Join thousands building the future.</h2>
+        <p className="mx-auto mt-3 max-w-md text-white/80">
+          50,000+ developers have already found their next co-founder on DevConnect.
+        </p>
         <Link
           href="/signup"
           className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-primary hover:opacity-90"

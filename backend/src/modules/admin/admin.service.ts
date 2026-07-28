@@ -7,12 +7,18 @@ export class AdminService {
 
   constructor(private prisma: PrismaService) {}
 
+  async createReport(reporterId: string, targetType: string, targetId: string, reason: string) {
+    return this.prisma.report.create({
+      data: { reporterId, targetType, targetId, reason, status: 'pending' },
+    });
+  }
+
   listUsers(page = 1, pageSize = 25) {
     return this.prisma.user.findMany({
       skip: (page - 1) * pageSize,
       take: pageSize,
       orderBy: { createdAt: 'desc' },
-      include: { profile: true },
+      include: { profile: true, _count: { select: { sessions: true, matchesAsUserOne: true, matchesAsUserTwo: true } } },
     });
   }
 
@@ -84,11 +90,41 @@ export class AdminService {
     }
   }
 
+  async getDetailedAnalytics() {
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{
+        date: string;
+        new_users: number;
+        new_matches: number;
+        new_projects: number;
+        new_messages: number;
+      }>>`
+        SELECT
+          d::date AS date,
+          COALESCE(u.cnt, 0) AS new_users,
+          COALESCE(m.cnt, 0) AS new_matches,
+          COALESCE(p.cnt, 0) AS new_projects,
+          COALESCE(msg.cnt, 0) AS new_messages
+        FROM generate_series(NOW() - INTERVAL '30 days', NOW(), '1 day') d
+        LEFT JOIN (SELECT DATE(created_at) dt, COUNT(*) cnt FROM users GROUP BY dt) u ON u.dt = d::date
+        LEFT JOIN (SELECT DATE(created_at) dt, COUNT(*) cnt FROM matches GROUP BY dt) m ON m.dt = d::date
+        LEFT JOIN (SELECT DATE(created_at) dt, COUNT(*) cnt FROM projects GROUP BY dt) p ON p.dt = d::date
+        LEFT JOIN (SELECT DATE(created_at) dt, COUNT(*) cnt FROM messages GROUP BY dt) msg ON msg.dt = d::date
+        ORDER BY d
+      `;
+      return rows;
+    } catch (e) {
+      this.logger.warn(`Detailed analytics query failed: ${(e as Error).message}`);
+      return [];
+    }
+  }
+
   getAuditLogs(page = 1, pageSize = 50) {
     return this.prisma.auditLog.findMany({
       skip: (page - 1) * pageSize,
       take: pageSize,
       orderBy: { createdAt: 'desc' },
+      include: { user: { include: { profile: true } } },
     });
   }
 }

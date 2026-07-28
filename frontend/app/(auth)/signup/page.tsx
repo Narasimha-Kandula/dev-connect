@@ -5,48 +5,44 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { signupSchema, type SignupInput } from '@/lib/validations';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [agreed, setAgreed] = useState(false);
+  const registerStore = useAuthStore((s) => s.register);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const { register, handleSubmit, formState: { errors } } = useForm<SignupInput>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { agreed: undefined },
+  });
+
   function handleOAuth(provider: 'github' | 'google') {
-    const url = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1'}/auth/oauth`;
-    const redirect = `${window.location.origin}/auth/callback?provider=${provider}`;
+    const githubId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    const googleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-    const oauthUrl =
-      provider === 'github'
-        ? `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email`
-        : `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile`;
-
-    if (!oauthUrl) {
-      setError(`${provider} OAuth is not configured.`);
+    if (provider === 'github') {
+      if (!githubId) { setError('GitHub OAuth is not configured.'); return; }
+      const redirect = `${window.location.origin}/auth/callback`;
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email`;
       return;
     }
-    window.location.href = oauthUrl;
+
+    if (!googleId) { setError('Google OAuth is not configured.'); return; }
+    const redirect = `${window.location.origin}/auth/google/callback`;
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile`;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!agreed) {
-      setError('Please accept the Terms and Privacy Policy.');
-      return;
-    }
+  async function onSubmit(data: SignupInput) {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.post<{ accessToken: string; refreshToken: string }>(
-        '/auth/register',
-        { name, email, password },
-      );
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      await registerStore(data.name, data.email, data.password);
       router.push('/onboarding');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
@@ -63,50 +59,46 @@ export default function SignupPage() {
           <p className="text-sm text-muted-foreground">Join the developer collaboration network.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Name</label>
               <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                {...register('name')}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
+              {errors.name && <p className="mt-1 text-xs text-danger">{errors.name.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Email</label>
               <input
                 type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register('email')}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
+              {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Password</label>
               <input
                 type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register('password')}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               />
               <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>
+              {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
             </div>
 
             <label className="flex items-start gap-2 text-sm text-muted-foreground">
               <input
                 type="checkbox"
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
+                {...register('agreed')}
                 className="mt-1"
               />
               I agree to the{' '}
               <Link href="/terms" className="underline hover:text-foreground">Terms</Link> and{' '}
               <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
             </label>
+            {errors.agreed && <p className="text-xs text-danger">{errors.agreed.message}</p>}
 
             {error && <p className="text-sm text-danger">{error}</p>}
 

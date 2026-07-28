@@ -89,6 +89,9 @@ model User {
   email             String    @unique
   passwordHash      String?   @map("password_hash")
   emailVerified     Boolean   @default(false) @map("email_verified")
+  emailVerificationToken String? @map("email_verification_token")
+  mfaSecret         String?   @map("mfa_secret")
+  mfaEnabled        Boolean   @default(false) @map("mfa_enabled")
   role              UserRole  @default(DEVELOPER)
   planTier          PlanTier  @default(FREE) @map("plan_tier")
   isSuspended       Boolean   @default(false) @map("is_suspended")
@@ -101,6 +104,8 @@ model User {
   oauthAccounts     OAuthAccount[]
   sessions          Session[]
   apiKeys           ApiKey[]
+  passwordResetTokens PasswordResetToken[]
+  notificationPreferences NotificationPreference[]
 
   sentInvitations     Invitation[]     @relation("InvitationSender")
   receivedInvitations Invitation[]     @relation("InvitationReceiver")
@@ -118,9 +123,12 @@ model User {
   projectMemberships ProjectMember[]
 
   notifications     Notification[]
+  devices           UserDevice[]
   auditLogs         AuditLog[]
   reports           Report[]         @relation("ReportedBy")
   moderationActions ModerationAction[]
+
+  collabParticipants CollabRoomParticipant[]
 
   connectionsAsA    Connection[]     @relation("ConnectionUserA")
   connectionsAsB    Connection[]     @relation("ConnectionUserB")
@@ -129,6 +137,45 @@ model User {
   blockedByUsers    BlockedUser[]    @relation("BlockedUserRel")
 
   @@map("users")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model NotificationPreference {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  channel   NotificationChannel @default(IN_APP)
+  type      NotificationType
+  enabled   Boolean @default(true)
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, type])
+  @@map("notification_preferences")
+}
+
+model UserDevice {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  pushToken String?  @map("push_token")
+  platform  String?  // ios | android | web
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_devices")
 }
 
 model OAuthAccount {
@@ -184,9 +231,11 @@ model Profile {
   bio               String?
   avatarUrl         String?             @map("avatar_url")
   location          String?
+  experienceLevel   String?             @map("experience_level")
   githubUsername    String?             @map("github_username")
   githubData        Json?               @map("github_data")
-  portfolioLinks     Json?               @map("portfolio_links")
+  portfolioLinks    Json?               @map("portfolio_links")
+  preferences       Json?               @map("preferences")
   availability      AvailabilityStatus  @default(NOT_AVAILABLE)
   reputationScore   Int                 @default(0) @map("reputation_score")
   profileCompleteness Int               @default(0) @map("profile_completeness")
@@ -232,6 +281,7 @@ model Endorsement {
   id           String   @id @default(uuid())
   profileId    String   @map("profile_id")
   endorserId   String   @map("endorser_id")
+  skill        String?  @map("skill")
   message      String?
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -391,7 +441,7 @@ model Project {
   ownerId        String            @map("owner_id")
   title          String
   description    String?
-  requiredSkills Json?             @map("required_skills") // [skillName]
+  requiredSkills Json?             @map("required_skills")
   budget         String?
   timeline       String?
   status         ProjectStatus     @default(DRAFT)
@@ -401,11 +451,26 @@ model Project {
   owner          User              @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members        ProjectMember[]
   tasks          Task[]
+  milestones     Milestone[]
   invitations    Invitation[]
   conversations  Conversation[]
   files          SharedFile[]
 
   @@map("projects")
+}
+
+model Milestone {
+  id          String   @id @default(uuid())
+  projectId   String   @map("project_id")
+  title       String
+  description String?
+  dueDate     DateTime? @map("due_date")
+  status      String   @default("pending") // pending | in_progress | completed
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("milestones")
 }
 
 model ProjectMember {
@@ -427,7 +492,7 @@ model Task {
   projectId   String    @map("project_id")
   title       String
   description String?
-  status      String    @default("todo") // todo | in_progress | done
+  status      String    @default("todo")
   assigneeId  String?   @map("assignee_id")
   dueDate     DateTime? @map("due_date")
   createdAt   DateTime  @default(now()) @map("created_at")
@@ -450,6 +515,49 @@ model SharedFile {
   project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("shared_files")
+}
+
+// ─── Collaboration Rooms ────────────────────────────────────
+
+model CollabRoom {
+  id        String   @id @default(uuid())
+  name      String?
+  projectId String?  @map("project_id")
+  matchId   String?  @map("match_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  endedAt   DateTime? @map("ended_at")
+
+  participants CollabRoomParticipant[]
+  recordings   CollabRoomRecording[]
+
+  @@map("collab_rooms")
+}
+
+model CollabRoomParticipant {
+  id        String   @id @default(uuid())
+  roomId    String   @map("room_id")
+  userId    String   @map("user_id")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+
+  room      CollabRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@map("collab_room_participants")
+}
+
+model CollabRoomRecording {
+  id        String   @id @default(uuid())
+  roomId    String   @map("room_id")
+  url       String
+  duration  Int?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  room      CollabRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("collab_room_recordings")
 }
 
 // ─── Notifications ──────────────────────────────────────────
@@ -476,10 +584,10 @@ model Notification {
 model Report {
   id           String   @id @default(uuid())
   reporterId   String   @map("reporter_id")
-  targetType   String   @map("target_type") // user | message | project
+  targetType   String   @map("target_type")
   targetId     String   @map("target_id")
   reason       String
-  status       String   @default("pending") // pending | reviewed | actioned | dismissed
+  status       String   @default("pending")
   createdAt    DateTime @default(now()) @map("created_at")
 
   reporter     User     @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
@@ -492,7 +600,7 @@ model ModerationAction {
   moderatorId  String   @map("moderator_id")
   targetType   String   @map("target_type")
   targetId     String   @map("target_id")
-  action       String   // warn | suspend | ban | remove_content
+  action       String
   reason       String?
   createdAt    DateTime @default(now()) @map("created_at")
 

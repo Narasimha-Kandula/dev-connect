@@ -18,7 +18,7 @@ async function main() {
   const adminEmail = 'admin@devconnect.dev';
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!existingAdmin) {
-    console.log('Creating default admin user (admin@devconnect.dev / ChangeMe123!)...');
+    console.log('Creating default administrator...');
     const passwordHash = await bcrypt.hash('ChangeMe123!', 12);
     await prisma.user.create({
       data: {
@@ -26,12 +26,52 @@ async function main() {
         passwordHash,
         role: 'ADMIN',
         emailVerified: true,
-        profile: { create: { displayName: 'Platform Admin' } },
+        profile: { create: { displayName: 'Platform Admin', headline: 'Managing the DevConnect network' } },
       },
     });
   }
 
-  console.log('Seed complete.');
+  const sampleUsers = [
+    { email: 'alice@example.com', name: 'Alice Chen', headline: 'Full-stack engineer passionate about EdTech' },
+    { email: 'bob@example.com', name: 'Bob Martinez', headline: 'Backend & infrastructure specialist' },
+  ];
+
+  for (const u of sampleUsers) {
+    const exists = await prisma.user.findUnique({ where: { email: u.email } });
+    if (!exists) {
+      const passwordHash = await bcrypt.hash('Password123!', 12);
+      const user = await prisma.user.create({
+        data: {
+          email: u.email,
+          passwordHash,
+          emailVerified: true,
+          profile: {
+            create: {
+              displayName: u.name,
+              headline: u.headline,
+              bio: `${u.name} is an experienced developer building on DevConnect.`,
+            },
+          },
+        },
+        include: { profile: true },
+      });
+
+      const react = await prisma.skill.findUnique({ where: { name: 'React' } });
+      const node = await prisma.skill.findUnique({ where: { name: 'Node.js' } });
+      const pg = await prisma.skill.findUnique({ where: { name: 'PostgreSQL' } });
+      const skills = [react, node, pg].filter(Boolean);
+
+      for (const skill of skills) {
+        await prisma.profileSkill.create({
+          data: { profileId: user.profile!.id, skillId: skill!.id, proficiency: 4 },
+        });
+      }
+
+      console.log(`  Created sample user: ${u.email}`);
+    }
+  }
+
+  console.log('Setup complete — ready to connect developers.');
 }
 
 main()

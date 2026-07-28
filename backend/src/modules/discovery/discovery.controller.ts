@@ -9,7 +9,20 @@ export class DiscoveryController {
   constructor(private discoveryService: DiscoveryService) {}
 
   @Get()
-  getFeed(@CurrentUser('id') userId: string, @Query('limit') limit?: string) {
-    return this.discoveryService.getFeed(userId, limit ? parseInt(limit, 10) : undefined);
+  getFeed(
+    @CurrentUser('id') userId: string,
+    @Query('skill') skill?: string,
+    @Query('location') location?: string,
+    @Query('experienceLevel') experienceLevel?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.discoveryService.getFeed(userId, {
+      skill,
+      location,
+      experienceLevel,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
   }
 }

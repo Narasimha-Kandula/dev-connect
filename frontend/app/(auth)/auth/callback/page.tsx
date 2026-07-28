@@ -3,65 +3,50 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
 
-function CallbackHandler() {
+function CallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const setTokens = useAuthStore((s) => s.setTokens);
+  const [msg, setMsg] = useState('Completing authentication…');
 
   useEffect(() => {
+    const provider = searchParams.get('provider');
     const code = searchParams.get('code');
-    const provider = (searchParams.get('provider') ?? 'github') as 'github' | 'google';
 
-    if (!code) {
-      setError('No authorization code received');
+    if (!provider || !code) {
+      setMsg('Invalid OAuth response — missing provider or code.');
       return;
     }
 
     api
-      .post<{ accessToken: string; refreshToken: string }>('/auth/oauth', { code, provider })
+      .post<{ accessToken: string; refreshToken: string }>('/auth/oauth/callback', {
+        provider,
+        code,
+        redirectUri: `${window.location.origin}/auth/callback?provider=${provider}`,
+      })
       .then((data) => {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+        setTokens(data.accessToken, data.refreshToken);
+        useAuthStore.getState().initialize();
         router.push('/dashboard');
       })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'OAuth failed');
+      .catch(() => {
+        setMsg('Authentication failed. Please try logging in again.');
       });
-  }, [searchParams, router]);
-
-  if (error) {
-    return (
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-6 text-center">
-        <h1 className="text-xl font-semibold text-danger">Authentication Failed</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error}</p>
-        <button
-          onClick={() => router.push('/login')}
-          className="mt-6 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground"
-        >
-          Back to Login
-        </button>
-      </div>
-    );
-  }
+  }, []);
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-xl font-semibold">Signing you in...</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Please wait while we complete authentication.</p>
+    <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
+      {msg}
     </div>
   );
 }
 
-export default function OAuthCallbackPage() {
+export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-6 text-center">
-        <h1 className="text-xl font-semibold">Signing you in...</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Please wait...</p>
-      </div>
-    }>
-      <CallbackHandler />
+    <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+      <CallbackInner />
     </Suspense>
   );
 }

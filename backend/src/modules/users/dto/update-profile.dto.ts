@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsArray, IsIn, IsObject, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional() @IsString() @MaxLength(80)
@@ -22,4 +22,7 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsIn(['OPEN_TO_WORK', 'HIRING', 'OPEN_TO_COLLAB', 'NOT_AVAILABLE'])
   availability?: string;
+
+  @IsOptional() @IsObject()
+  preferences?: Record<string, unknown>;
 }

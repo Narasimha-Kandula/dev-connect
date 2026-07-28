@@ -12,6 +12,9 @@ import { ChatModule } from './modules/chat/chat.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { CollabModule } from './modules/collab/collab.module';
+import { RecommendationsModule } from './modules/recommendations/recommendations.module';
+import { ProfileModule } from './modules/profile/profile.module';
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { AdminModule } from './modules/admin/admin.module';
     ProjectsModule,
     NotificationsModule,
     AdminModule,
+    CollabModule,
+    RecommendationsModule,
+    ProfileModule,
   ],
 })
 export class AppModule {}

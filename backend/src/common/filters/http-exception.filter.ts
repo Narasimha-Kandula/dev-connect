@@ -22,10 +22,22 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
+    const responseBody =
       exception instanceof HttpException
         ? exception.getResponse()
-        : 'Internal server error';
+        : { message: 'Internal server error' };
+
+    let message: string;
+    if (typeof responseBody === 'string') {
+      message = responseBody;
+    } else if (typeof responseBody === 'object' && responseBody !== null) {
+      const obj = responseBody as Record<string, unknown>;
+      if (Array.isArray(obj.message)) message = (obj.message as string[]).join('. ');
+      else if (typeof obj.message === 'string') message = obj.message;
+      else message = 'Bad request';
+    } else {
+      message = 'Internal server error';
+    }
 
     if (status >= 500) {
       this.logger.error(
@@ -39,6 +51,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
       timestamp: new Date().toISOString(),
       message,
-    });
+    } as never);
   }
 }

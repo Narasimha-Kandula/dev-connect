@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Put, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
@@ -27,7 +27,29 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Put('me/skills')
-  setSkills(@CurrentUser('id') userId: string, @Body('skills') skills: string[]) {
+  setSkills(@CurrentUser('id') userId: string, @Body('skills') skills: { name: string; proficiency?: number }[]) {
     return this.usersService.setSkills(userId, skills);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/endorse')
+  endorse(
+    @CurrentUser('id') endorserId: string,
+    @Param('id') targetId: string,
+    @Body('skill') skill?: string,
+    @Body('message') message?: string,
+  ) {
+    return this.usersService.endorseSkill(targetId, endorserId, skill, message);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/sync-github')
+  syncGitHub(@CurrentUser('id') userId: string, @Body('username') username: string) {
+    return this.usersService.syncGitHub(userId, username);
+  }
+
+  @Get('search')
+  searchProfiles(@Query('q') q: string, @Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.usersService.searchProfiles(q, limit ? parseInt(limit, 10) : undefined, offset ? parseInt(offset, 10) : undefined);
   }
 }
