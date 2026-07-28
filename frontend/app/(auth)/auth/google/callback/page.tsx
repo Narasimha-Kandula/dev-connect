@@ -13,16 +13,24 @@ function GoogleCallbackInner() {
 
   useEffect(() => {
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const savedState = sessionStorage.getItem('oauth_state');
+    sessionStorage.removeItem('oauth_state');
+
     if (!code) {
       setMsg('Invalid response from Google.');
       return;
     }
 
+    if (state && savedState && state !== savedState) {
+      setMsg('OAuth state mismatch — possible CSRF attack. Please try again.');
+      return;
+    }
+
     api
-      .post<{ accessToken: string; refreshToken: string }>('/auth/oauth/callback', {
+      .post<{ accessToken: string; refreshToken: string }>('/auth/oauth', {
         provider: 'google',
         code,
-        redirectUri: `${window.location.origin}/auth/google/callback`,
       })
       .then((data) => {
         setTokens(data.accessToken, data.refreshToken);

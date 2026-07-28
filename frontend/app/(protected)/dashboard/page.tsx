@@ -12,15 +12,19 @@ export default function DashboardPage() {
   const { token, user } = useAuthStore();
   const [userName, setUserName] = useState('there');
   const [completeness, setCompleteness] = useState(0);
-  const [stats, setStats] = useState({ matches: 0, messages: 0, invites: 0 });
+  const [matchCount, setMatchCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
     setUserName(user?.profile?.displayName ?? 'there');
     setCompleteness(user?.profile?.profileCompleteness ?? 0);
-    api.get<{ matches?: number; unreadMessages?: number; pendingInvites?: number }>('/matches', token)
-      .then((d) => setStats({ matches: d.matches ?? 0, messages: d.unreadMessages ?? 0, invites: d.pendingInvites ?? 0 }))
-      .catch(() => {});
+
+    Promise.allSettled([
+      api.get<Array<{ id: string }>>('/matches', token),
+    ]).then(([matchesResult]) => {
+      if (matchesResult.status === 'fulfilled') setMatchCount(matchesResult.value?.length ?? 0);
+    }).finally(() => setLoading(false));
   }, [token, user]);
 
   return (
@@ -48,19 +52,23 @@ export default function DashboardPage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Active Matches</p>
-            <p className="mt-2 text-3xl font-bold text-match">{stats.matches}</p>
+            {loading ? (
+              <div className="mt-2 h-8 w-12 animate-pulse rounded bg-muted" />
+            ) : (
+              <p className="mt-2 text-3xl font-bold text-match">{matchCount}</p>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Unread Messages</p>
-            <p className="mt-2 text-3xl font-bold text-accent">{stats.messages}</p>
+            <p className="mt-2 text-3xl font-bold text-accent">—</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Pending Invites</p>
-            <p className="mt-2 text-3xl font-bold text-warning">{stats.invites}</p>
+            <p className="mt-2 text-3xl font-bold text-warning">—</p>
           </CardContent>
         </Card>
       </div>
@@ -76,13 +84,17 @@ export default function DashboardPage() {
         <Card>
           <CardHeader><CardTitle>Recent Matches</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            No matches yet — head to Discover to find your next collaborator.
+            {matchCount > 0
+              ? `You have ${matchCount} active match${matchCount === 1 ? '' : 'es'}. Check your matches for details.`
+              : 'No matches yet — head to Discover to find your next collaborator.'}
           </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle><Activity size={16} className="mr-1 inline" /> Activity Snapshot</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>No recent activity. Start by completing your profile.</p>
+            {completeness < 100
+              ? 'Complete your profile to unlock full platform features.'
+              : 'Your profile is complete! Start exploring matches and projects.'}
           </CardContent>
         </Card>
       </div>

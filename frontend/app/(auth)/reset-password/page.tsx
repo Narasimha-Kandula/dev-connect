@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase/client';
+import { api } from '@/lib/api';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -24,14 +24,21 @@ export default function ResetPasswordPage() {
       setError('Password must be at least 8 characters.');
       return;
     }
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
-      setError(error.message);
+
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (!token) {
+      setError('Invalid or missing reset token.');
       return;
     }
-    setSuccess(true);
-    setTimeout(() => router.push('/login'), 1500);
+
+    try {
+      await api.post('/auth/reset-password', { token, password });
+      setSuccess(true);
+      setTimeout(() => router.push('/login'), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reset password');
+    }
   }
 
   return (

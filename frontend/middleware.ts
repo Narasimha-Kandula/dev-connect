@@ -10,7 +10,7 @@ const publicRoutes = new Set([
 
 const authRoutes = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('accessToken')?.value
     ?? request.headers.get('authorization')?.replace('Bearer ', '')

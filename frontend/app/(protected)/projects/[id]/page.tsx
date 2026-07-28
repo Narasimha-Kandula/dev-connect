@@ -8,44 +8,48 @@ import { api } from '@/lib/api';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/auth-store';
+
+interface ProjectMember {
+  userId: string;
+  role: string;
+  user: { profile?: { displayName?: string } };
+}
 
 interface ProjectDetail {
   id: string;
-  name: string;
+  title: string;
   description: string;
-  techStack: string[];
-  lookingFor: string[];
+  requiredSkills: string[];
   owner: { displayName: string };
+  members: ProjectMember[];
 }
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { token, user } = useAuthStore();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [applyMessage, setApplyMessage] = useState('');
   const [applying, setApplying] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') ?? undefined : undefined;
 
   useEffect(() => {
     if (!token || !id) return;
-    api.get<{ project: ProjectDetail }>(`/projects/${id}`, token)
-      .then((d) => setProject(d.project))
+    api.get<ProjectDetail>(`/projects/${id}`, token)
+      .then((d) => {
+        setProject(d);
+        const isMember = d.members?.some((m) => m.userId === user?.id);
+        if (isMember) setHasApplied(true);
+      })
       .catch(() => {});
-  }, [id, token]);
-
-  useEffect(() => {
-    if (!token || !id) return;
-    api.get<{ applications: Array<{ id: string }> }>(`/projects/${id}/applications`, token)
-      .then((d) => { if (d.applications && d.applications.length > 0) setHasApplied(true); })
-      .catch(() => {});
-  }, [id, token]);
+  }, [id, token, user?.id]);
 
   const handleApply = useCallback(async () => {
     if (!token || !id) return;
     setApplying(true);
     try {
-      await api.post(`/projects/${id}/applications`, { message: applyMessage }, token);
+      await api.post(`/projects/${id}/join`, {}, token);
       toast.success('Application submitted!');
       setHasApplied(true);
       setShowApplyModal(false);
@@ -73,7 +77,7 @@ export default function ProjectDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{project.name}</CardTitle>
+          <CardTitle>{project.title}</CardTitle>
           <p className="text-sm text-muted-foreground">by {project.owner?.displayName ?? 'Unknown'}</p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -81,21 +85,12 @@ export default function ProjectDetailPage() {
             <p className="text-sm text-muted-foreground">{project.description}</p>
           </div>
 
-          <div>
-            <p className="mb-1 text-sm font-medium">Tech Stack</p>
-            <div className="flex flex-wrap gap-2">
-              {(project.techStack ?? []).map((t) => (
-                <span key={t} className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{t}</span>
-              ))}
-            </div>
-          </div>
-
-          {(project.lookingFor ?? []).length > 0 && (
+          {(project.requiredSkills ?? []).length > 0 && (
             <div>
-              <p className="mb-1 text-sm font-medium">Looking For</p>
+              <p className="mb-1 text-sm font-medium">Required Skills</p>
               <div className="flex flex-wrap gap-2">
-                {project.lookingFor.map((r) => (
-                  <span key={r} className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">{r}</span>
+                {project.requiredSkills.map((t) => (
+                  <span key={t} className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{t}</span>
                 ))}
               </div>
             </div>
@@ -103,9 +98,9 @@ export default function ProjectDetailPage() {
 
           <Button
             disabled={hasApplied}
-            onClick={() => setShowApplyModal(true)}
+            onClick={() => hasApplied ? null : setShowApplyModal(true)}
           >
-            {hasApplied ? 'Applied ✓' : 'Apply to Join'}
+            {hasApplied ? 'Already a member' : 'Apply to Join'}
           </Button>
         </CardContent>
       </Card>
@@ -140,7 +135,7 @@ export default function ProjectDetailPage() {
                     Cancel
                   </Button>
                   <Button
-                    disabled={applying || !applyMessage.trim()}
+                    disabled={applying}
                     onClick={handleApply}
                   >
                     {applying ? 'Submitting…' : 'Submit Application'}

@@ -25,17 +25,19 @@ export default function SignupPage() {
   function handleOAuth(provider: 'github' | 'google') {
     const githubId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
     const googleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('oauth_state', state);
 
     if (provider === 'github') {
       if (!githubId) { setError('GitHub OAuth is not configured.'); return; }
       const redirect = `${window.location.origin}/auth/callback`;
-      window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email`;
+      window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email&state=${state}`;
       return;
     }
 
     if (!googleId) { setError('Google OAuth is not configured.'); return; }
     const redirect = `${window.location.origin}/auth/google/callback`;
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile`;
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile&state=${state}`;
   }
 
   async function onSubmit(data: SignupInput) {

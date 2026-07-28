@@ -41,6 +41,7 @@ export default function EditProfilePage() {
       profile?: {
         displayName?: string; headline?: string; bio?: string; location?: string;
         skills?: { skill: { name: string } }[];
+        avatarUrl?: string;
       };
     }>('/users/me', token)
       .then((d) => {
@@ -54,6 +55,7 @@ export default function EditProfilePage() {
         });
         const name = p?.displayName ?? (d as Record<string, unknown>).name as string ?? '';
         setAvatarInitial(name.charAt(0).toUpperCase() || '?');
+        if (p?.avatarUrl) setAvatarPreview(p.avatarUrl);
       })
       .catch((err) => {
         setLoadError(err instanceof Error ? err.message : 'Failed to load profile');

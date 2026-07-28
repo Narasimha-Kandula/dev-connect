@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",
-    "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.110.8",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
     "lucide-react": "^0.474.0",

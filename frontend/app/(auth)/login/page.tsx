@@ -14,16 +14,18 @@ import { loginSchema, type LoginInput } from '@/lib/validations';
 function getOAuthUrl(provider: 'github' | 'google') {
   const githubId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
   const googleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('oauth_state', state);
 
   if (provider === 'github') {
     if (!githubId) return null;
     const redirect = `${window.location.origin}/auth/callback`;
-    return `https://github.com/login/oauth/authorize?client_id=${githubId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email`;
+    return `https://github.com/login/oauth/authorize?client_id=${githubId}&redirect_uri=${encodeURIComponent(redirect)}&scope=user:email&state=${state}`;
   }
 
   if (!googleId) return null;
   const redirect = `${window.location.origin}/auth/google/callback`;
-  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile`;
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleId}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=email%20profile&state=${state}`;
 }
 
 export default function LoginPage() {

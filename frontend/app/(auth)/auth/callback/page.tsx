@@ -14,17 +14,24 @@ function CallbackInner() {
   useEffect(() => {
     const provider = searchParams.get('provider');
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const savedState = sessionStorage.getItem('oauth_state');
+    sessionStorage.removeItem('oauth_state');
 
     if (!provider || !code) {
       setMsg('Invalid OAuth response — missing provider or code.');
       return;
     }
 
+    if (state && savedState && state !== savedState) {
+      setMsg('OAuth state mismatch — possible CSRF attack. Please try again.');
+      return;
+    }
+
     api
-      .post<{ accessToken: string; refreshToken: string }>('/auth/oauth/callback', {
+      .post<{ accessToken: string; refreshToken: string }>('/auth/oauth', {
         provider,
         code,
-        redirectUri: `${window.location.origin}/auth/callback?provider=${provider}`,
       })
       .then((data) => {
         setTokens(data.accessToken, data.refreshToken);
