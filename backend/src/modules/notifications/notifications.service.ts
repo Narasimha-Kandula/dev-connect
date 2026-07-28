@@ -67,6 +67,10 @@ export class NotificationsService {
     });
   }
 
+  private escapeHtml(str: string): string {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   private async sendEmailSafe(userId: string, type: NotificationType, title: string, body?: string) {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -77,8 +81,8 @@ export class NotificationsService {
       await resend.emails.send({
         from: this.config.get<string>('resend.emailFrom')!,
         to: user.email,
-        subject: `DevConnect: ${title}`,
-        html: `<p>${body ?? title}</p><p style="color:#888">— DevConnect Team</p>`,
+        subject: `DevConnect: ${this.escapeHtml(title)}`,
+        html: `<p>${this.escapeHtml(body ?? title)}</p><p style="color:#888">— DevConnect Team</p>`,
       });
     } catch (e) {
       this.logger.error(`Email send failed for user ${userId}: ${(e as Error).message}`);

@@ -96,21 +96,19 @@ export class MatchingService {
     if (match.userOneId !== userId && match.userTwoId !== userId) {
       throw new ForbiddenException('You are not a participant of this match');
     }
-    const otherUserId = match.userOneId === userId ? match.userTwoId : match.userOneId;
-    await this.prisma.blockedUser.upsert({
-      where: { blockerId_blockedId: { blockerId: userId, blockedId: otherUserId } },
-      update: {},
-      create: { blockerId: userId, blockedId: otherUserId },
-    });
     return this.prisma.match.update({
       where: { id: matchId },
-      data: { status: MatchStatus.BLOCKED },
+      data: { status: MatchStatus.ARCHIVED },
     });
   }
 
-  async createConnection(matchId: string) {
+  async createConnection(matchId: string, userId: string) {
     const match = await this.prisma.match.findUnique({ where: { id: matchId } });
     if (!match) throw new NotFoundException('Match not found');
+    if (match.userOneId !== userId && match.userTwoId !== userId) {
+      throw new ForbiddenException('You are not a participant of this match');
+    }
+    if (match.status !== 'ACTIVE') throw new BadRequestException('Cannot connect on inactive match');
     const [userAId, userBId] = [match.userOneId, match.userTwoId].sort();
     return this.prisma.connection.upsert({
       where: { userAId_userBId: { userAId, userBId } },

@@ -16,9 +16,13 @@ export class AdminService {
   listUsers(page = 1, pageSize = 25) {
     return this.prisma.user.findMany({
       skip: (page - 1) * pageSize,
-      take: pageSize,
+      take: Math.min(pageSize, 100),
       orderBy: { createdAt: 'desc' },
-      include: { profile: true, _count: { select: { sessions: true, matchesAsUserOne: true, matchesAsUserTwo: true } } },
+      select: {
+        id: true, email: true, role: true, isSuspended: true, isBanned: true, createdAt: true, lastLoginAt: true,
+        profile: true,
+        _count: { select: { sessions: true, matchesAsUserOne: true, matchesAsUserTwo: true } },
+      },
     });
   }
 

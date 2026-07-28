@@ -1,4 +1,5 @@
 import { Body, Controller, Post, Get, Delete, HttpCode, HttpStatus, UseGuards, Param, Patch } from '@nestjs/common';
+import { IsIn, IsString } from 'class-validator';
 import { AuthService } from './auth.service';
 import { OAuthService } from './oauth.service';
 import { MfaService } from './mfa.service';
@@ -14,8 +15,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 class OAuthDto {
-  code!: string;
-  provider!: 'github' | 'google';
+  @IsString() code!: string;
+  @IsString() @IsIn(['github', 'google']) provider!: 'github' | 'google';
 }
 
 @Controller('auth')
@@ -54,6 +55,12 @@ export class AuthController {
   @Post('oauth')
   @HttpCode(HttpStatus.OK)
   oauth(@Body() dto: OAuthDto) {
+    return this.oauthService.authenticate(dto.code, dto.provider);
+  }
+
+  @Post('oauth/callback')
+  @HttpCode(HttpStatus.OK)
+  oauthCallback(@Body() dto: OAuthDto) {
     return this.oauthService.authenticate(dto.code, dto.provider);
   }
 

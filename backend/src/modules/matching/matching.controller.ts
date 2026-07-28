@@ -43,7 +43,7 @@ export class MatchingController {
   }
 
   @Post('matches/:id/connect')
-  createConnection(@Param('id') id: string) {
-    return this.matchingService.createConnection(id);
+  createConnection(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.matchingService.createConnection(id, userId);
   }
 }
