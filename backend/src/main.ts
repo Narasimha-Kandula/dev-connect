@@ -25,10 +25,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  app.getHttpServer().on('listening', () => {
+    console.log(`DevConnect API running on port ${process.env.PORT ?? 4000}`);
+  });
+
   const port = process.env.PORT ?? 4000;
-  await app.listen(port);
-  // eslint-disable-next-line no-console
-  console.log(`DevConnect API running on http://localhost:${port}/api/v1`);
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();

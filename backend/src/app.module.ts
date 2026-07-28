@@ -15,6 +15,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { CollabModule } from './modules/collab/collab.module';
 import { RecommendationsModule } from './modules/recommendations/recommendations.module';
 import { ProfileModule } from './modules/profile/profile.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -34,5 +35,6 @@ import { ProfileModule } from './modules/profile/profile.module';
     RecommendationsModule,
     ProfileModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
