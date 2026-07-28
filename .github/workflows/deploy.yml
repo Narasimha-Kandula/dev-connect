@@ -1,0 +1,80 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Only one deploy at a time, queue if already running
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate before deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ── Backend ──
+      - name: Backend — install
+        run: npm ci
+        working-directory: backend
+
+      - name: Backend — generate Prisma Client
+        run: npm run prisma:generate
+        working-directory: backend
+
+      - name: Backend — lint
+        run: npm run lint
+        working-directory: backend
+
+      - name: Backend — typecheck
+        run: npm run typecheck
+        working-directory: backend
+
+      - name: Backend — build
+        run: npm run build
+        working-directory: backend
+
+      # ── Frontend ──
+      - name: Frontend — install
+        run: npm ci
+        working-directory: frontend
+
+      - name: Frontend — lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Frontend — typecheck
+        run: npm run typecheck
+        working-directory: frontend
+
+      - name: Frontend — build
+        run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://devconnect-backend.up.railway.app/api/v1
+          NEXT_PUBLIC_WS_URL: https://devconnect-backend.up.railway.app
+          NEXT_PUBLIC_GITHUB_CLIENT_ID: Ov23liDwKQCYX4wutIVx
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: 360102898511-saa8hqfibu6158399fss6tpoupjtvpeb.apps.googleusercontent.com
+
+  # ── Auto-deploy ──
+  #
+  # Railway and Netlify are configured to auto-deploy on push to main.
+  # This workflow is a quality gate — if validation fails, the push
+  # is blocked before either platform deploys a broken build.
+  #
+  # What happens on a successful push to main:
+  #   1. This workflow validates lint + typecheck + build for both apps
+  #   2. Railway detects the push, builds Docker image, runs:
+  #        prisma migrate deploy  (applies pending DB schema changes)
+  #        node dist/main         (starts the API)
+  #   3. Netlify detects the push, runs:
+  #        npx next build         (builds the frontend)
+  #
+  # No manual commands needed. Ever.

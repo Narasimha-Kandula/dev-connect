@@ -35,7 +35,14 @@ export default function SettingsPage() {
     setNotifications(next);
     if (!token) return;
     try {
-      await api.put('/users/me/preferences', { notifications: next }, token ?? undefined);
+      const typeMap: Record<string, string> = { email: 'MATCH', push: 'MESSAGE', digest: 'PROJECT' };
+      const channelMap: Record<string, string> = { email: 'EMAIL', push: 'PUSH', digest: 'IN_APP' };
+      await api.post('/notifications/preferences', {
+        type: typeMap[key],
+        channel: channelMap[key],
+        enabled: value,
+      }, token);
+      toast.success('Preferences saved');
     } catch {
       toast.error('Failed to save preferences');
     }

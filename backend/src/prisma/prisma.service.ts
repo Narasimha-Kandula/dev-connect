@@ -13,8 +13,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error('DATABASE_URL is not set');
 
-    const separator = url.includes('?') ? '&' : '?';
-    const poolUrl = `${url}${separator}pool_timeout=15&statement_cache_size=0`;
+    let poolUrl: string;
+    if (url.includes('pool_timeout=')) {
+      poolUrl = url.replace(/pool_timeout=\d+/, 'pool_timeout=15').replace(/statement_cache_size=\d+/, 'statement_cache_size=0');
+      if (!poolUrl.includes('statement_cache_size=')) {
+        poolUrl += '&statement_cache_size=0';
+      }
+    } else if (url.includes('statement_cache_size=')) {
+      poolUrl = url.replace(/statement_cache_size=\d+/, 'statement_cache_size=0') + (url.includes('pool_timeout=') ? '' : '&pool_timeout=15');
+    } else {
+      const separator = url.includes('?') ? '&' : '?';
+      poolUrl = `${url}${separator}pool_timeout=15&statement_cache_size=0`;
+    }
 
     super({
       datasources: { db: { url: poolUrl } },

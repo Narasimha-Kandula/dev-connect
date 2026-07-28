@@ -11,12 +11,16 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/reset-password.dto';
 import { SetupMfaDto, EnableMfaDto } from './dto/mfa.dto';
 import { CreateApiKeyDto } from './dto/api-key.dto';
+import { OAuthDto } from './dto/oauth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
-class OAuthDto {
-  @IsString() code!: string;
-  @IsString() @IsIn(['github', 'google']) provider!: 'github' | 'google';
+class RefreshTokenDto {
+  @IsString() refreshToken!: string;
+}
+
+class VerifyEmailDto {
+  @IsString() token!: string;
 }
 
 @Controller('auth')
@@ -42,14 +46,14 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refresh(refreshToken);
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(dto.refreshToken);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Body('refreshToken') refreshToken: string) {
-    return this.authService.logout(refreshToken);
+  logout(@Body() dto: RefreshTokenDto) {
+    return this.authService.logout(dto.refreshToken);
   }
 
   @Post('oauth')
@@ -91,8 +95,8 @@ export class AuthController {
 
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  verifyEmail(@Body('token') token: string) {
-    return this.emailVerificationService.verify(token);
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.emailVerificationService.verify(dto.token);
   }
 
   @UseGuards(JwtAuthGuard)

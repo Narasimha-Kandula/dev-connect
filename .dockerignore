@@ -1,0 +1,17 @@
+node_modules
+dist
+.next
+.git
+.github
+*.md
+.env
+.env.*
+frontend/
+tests/
+scripts/
+database/
+docker-compose.yml
+netlify.toml
+railway.json
+Dockerfile
+.vscode

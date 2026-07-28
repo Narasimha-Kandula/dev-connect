@@ -10,14 +10,16 @@ export class MfaService {
 
   generateSecret(): { secret: string; qrCodeUrl: string } {
     const secret = crypto.randomBytes(20).toString('hex');
-    const qrCodeUrl = `otpauth://totp/DevConnect:${secret}?secret=${secret}&issuer=DevConnect`;
-    return { secret, qrCodeUrl };
+    const encodedSecret = Buffer.from(secret, 'hex').toString('base64').replace(/=+$/, '');
+    const qrCodeUrl = `otpauth://totp/DevConnect:${encodedSecret}?secret=${encodedSecret}&issuer=DevConnect`;
+    return { secret: encodedSecret, qrCodeUrl };
   }
 
   verifyToken(secret: string, token: string): boolean {
     const counter = Math.floor(Date.now() / 30000);
     const expected = this.generateTotp(secret, counter);
-    return token === expected;
+    const expectedPrev = this.generateTotp(secret, counter - 1);
+    return token === expected || token === expectedPrev;
   }
 
   async enable(userId: string, secret: string, token: string) {
@@ -38,9 +40,12 @@ export class MfaService {
   }
 
   private generateTotp(secret: string, counter: number): string {
+    const buffer = Buffer.alloc(8);
+    let c = counter;
+    for (let i = 7; i >= 0; i--) { buffer[i] = c & 0xff; c >>= 8; }
     const hmac = crypto
-      .createHmac('sha1', Buffer.from(secret, 'hex'))
-      .update(Buffer.from(counter.toString(16).padStart(16, '0'), 'hex'))
+      .createHmac('sha1', Buffer.from(secret, 'base64'))
+      .update(buffer)
       .digest();
     const offset = hmac[hmac.length - 1] & 0xf;
     const code =

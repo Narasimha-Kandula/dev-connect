@@ -134,7 +134,7 @@ export class MatchingService {
     );
   }
 
-  listMatches(userId: string) {
+  listMatches(userId: string, limit = 50, cursor?: string) {
     return this.prisma.match.findMany({
       where: { OR: [{ userOneId: userId }, { userTwoId: userId }], status: 'ACTIVE' },
       include: {
@@ -143,16 +143,21 @@ export class MatchingService {
         conversation: true,
       },
       orderBy: { createdAt: 'desc' },
+      take: Math.min(limit, 100),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
   }
 
-  listConnections(userId: string) {
+  listConnections(userId: string, limit = 50, cursor?: string) {
     return this.prisma.connection.findMany({
       where: { OR: [{ userAId: userId }, { userBId: userId }] },
       include: {
         userA: { include: { profile: true } },
         userB: { include: { profile: true } },
       },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(limit, 100),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
   }
 }

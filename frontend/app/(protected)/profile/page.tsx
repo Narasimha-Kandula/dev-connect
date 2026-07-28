@@ -52,9 +52,13 @@ export default function ProfilePage() {
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-6 pt-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-2xl font-bold text-primary">
-            {profile.displayName?.charAt(0) ?? '?'}
-          </div>
+          {profile.avatarUrl ? (
+            <img src={profile.avatarUrl} alt={profile.displayName} className="h-20 w-20 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-2xl font-bold text-primary">
+              {profile.displayName?.charAt(0) ?? '?'}
+            </div>
+          )}
           <div className="flex-1">
             <p className="text-xl font-semibold">{profile.displayName ?? 'Unnamed Developer'}</p>
             <p className="text-sm text-muted-foreground">{profile.headline ?? 'No headline set'}</p>

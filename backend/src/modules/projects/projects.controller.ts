@@ -5,6 +5,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { CreateTaskDto, UpdateTaskStatusDto, RespondToInvitationDto } from './dto/task.dto';
 
 @Controller('projects')
 export class ProjectsController {
@@ -64,18 +65,15 @@ export class ProjectsController {
   createTask(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
-    @Body('title') title: string,
-    @Body('description') description?: string,
-    @Body('assigneeId') assigneeId?: string,
-    @Body('dueDate') dueDate?: string,
+    @Body() dto: CreateTaskDto,
   ) {
-    return this.projectsService.createTask(id, userId, title, description, assigneeId, dueDate);
+    return this.projectsService.createTask(id, userId, dto.title, dto.description, dto.assigneeId, dto.dueDate);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('tasks/:taskId')
-  updateTask(@CurrentUser('id') userId: string, @Param('taskId') taskId: string, @Body('status') status: string) {
-    return this.projectsService.updateTaskStatus(taskId, userId, status);
+  updateTask(@CurrentUser('id') userId: string, @Param('taskId') taskId: string, @Body() dto: UpdateTaskStatusDto) {
+    return this.projectsService.updateTaskStatus(taskId, userId, dto.status);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -103,7 +101,7 @@ export class ProjectsController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/invitations/:invitationId/respond')
-  respondToInvitation(@CurrentUser('id') userId: string, @Param('invitationId') invitationId: string, @Body('action') action: 'ACCEPTED' | 'REJECTED') {
-    return this.projectsService.respondToInvitation(invitationId, userId, action);
+  respondToInvitation(@CurrentUser('id') userId: string, @Param('invitationId') invitationId: string, @Body() dto: RespondToInvitationDto) {
+    return this.projectsService.respondToInvitation(invitationId, userId, dto.action);
   }
 }

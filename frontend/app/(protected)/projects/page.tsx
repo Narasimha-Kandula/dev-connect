@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { Plus, Bookmark } from 'lucide-react';
+import { ProjectsSkeleton } from '@/components/skeletons';
 
 interface Project {
   id: string;
@@ -21,14 +22,26 @@ export default function ProjectsPage() {
   const token = useAuthStore((s) => s.token);
   const [projects, setProjects] = useState<Project[]>([]);
   const [skillFilter, setSkillFilter] = useState('');
+  const [debouncedFilter, setDebouncedFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedFilter(skillFilter), 300);
+    return () => clearTimeout(timer);
+  }, [skillFilter]);
 
   useEffect(() => {
     if (!token) return;
-    const params = skillFilter ? `?skill=${encodeURIComponent(skillFilter)}` : '';
+    const params = debouncedFilter ? `?skill=${encodeURIComponent(debouncedFilter)}` : '';
     api.get<Project[]>(`/projects${params}`, token)
       .then((d) => setProjects(Array.isArray(d) ? d : []))
-      .catch(() => {});
-  }, [token, skillFilter]);
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token, debouncedFilter]);
+
+  if (loading) {
+    return <ProjectsSkeleton />;
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">

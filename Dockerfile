@@ -22,9 +22,18 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/src/prisma ./src/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy start script
 COPY backend/start.sh ./
 RUN chmod +x start.sh
 
+# Copy migration files for prisma migrate deploy
+COPY backend/src/prisma/migrations ./src/prisma/migrations
+
 USER nestjs
 EXPOSE 4000
+
+# start.sh runs:
+#   1. prisma migrate deploy  (applies pending DB migrations)
+#   2. node dist/main        (starts the NestJS app)
 CMD ["./start.sh"]

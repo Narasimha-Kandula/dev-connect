@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CollabService } from './collab.service';
+import { CreateRoomDto } from './dto/collab.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('collab')
@@ -11,11 +12,9 @@ export class CollabController {
   @Post('rooms')
   createRoom(
     @CurrentUser('id') userId: string,
-    @Body('name') name: string,
-    @Body('projectId') projectId?: string,
-    @Body('matchId') matchId?: string,
+    @Body() dto: CreateRoomDto,
   ) {
-    return this.collabService.createRoom(name, userId, projectId, matchId);
+    return this.collabService.createRoom(dto.name ?? '', userId, dto.projectId, dto.matchId);
   }
 
   @Post('rooms/:id/join')
@@ -34,8 +33,12 @@ export class CollabController {
   }
 
   @Get('rooms')
-  listRooms(@CurrentUser('id') userId: string) {
-    return this.collabService.listActiveRooms(userId);
+  listRooms(
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.collabService.listActiveRooms(userId, limit ? parseInt(limit, 10) : undefined, cursor);
   }
 
   @Get('rooms/:id')

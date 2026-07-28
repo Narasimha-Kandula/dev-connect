@@ -221,6 +221,7 @@ model ApiKey {
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("api_keys")
 }
 
@@ -406,6 +407,7 @@ model ConversationMember {
 
   @@unique([conversationId, userId])
   @@index([conversationId])
+  @@index([userId])
   @@map("conversation_members")
 }
 
@@ -462,6 +464,8 @@ model Project {
   conversations  Conversation[]
   files          SharedFile[]
 
+  @@index([ownerId])
+  @@index([status])
   @@map("projects")
 }
 

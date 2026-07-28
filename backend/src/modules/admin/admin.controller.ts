@@ -4,6 +4,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
+import { CreateReportDto, ResolveReportDto, SuspendBanDto } from './dto/admin.dto';
 
 @Controller()
 export class AdminController {
@@ -13,11 +14,9 @@ export class AdminController {
   @Post('reports')
   createReport(
     @CurrentUser('id') userId: string,
-    @Body('targetType') targetType: string,
-    @Body('targetId') targetId: string,
-    @Body('reason') reason: string,
+    @Body() dto: CreateReportDto,
   ) {
-    return this.adminService.createReport(userId, targetType, targetId, reason);
+    return this.adminService.createReport(userId, dto.targetType, dto.targetId, dto.reason);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,15 +29,15 @@ export class AdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch('admin/users/:id/suspend')
-  suspend(@CurrentUser('id') modId: string, @Param('id') id: string, @Body('reason') reason?: string) {
-    return this.adminService.suspendUser(id, modId, reason);
+  suspend(@CurrentUser('id') modId: string, @Param('id') id: string, @Body() dto: SuspendBanDto) {
+    return this.adminService.suspendUser(id, modId, dto.reason);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Patch('admin/users/:id/ban')
-  ban(@CurrentUser('id') modId: string, @Param('id') id: string, @Body('reason') reason?: string) {
-    return this.adminService.banUser(id, modId, reason);
+  ban(@CurrentUser('id') modId: string, @Param('id') id: string, @Body() dto: SuspendBanDto) {
+    return this.adminService.banUser(id, modId, dto.reason);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -58,8 +57,8 @@ export class AdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'MODERATOR')
   @Patch('admin/reports/:id/resolve')
-  resolveReport(@Param('id') id: string, @Body('status') status: 'reviewed' | 'actioned' | 'dismissed') {
-    return this.adminService.resolveReport(id, status);
+  resolveReport(@Param('id') id: string, @Body() dto: ResolveReportDto) {
+    return this.adminService.resolveReport(id, dto.status);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

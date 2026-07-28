@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
-echo "Running database migrations..."
+
+echo "── Running Prisma migrations ──"
 npx prisma migrate deploy --schema=src/prisma/schema.prisma
-echo "Starting application..."
+echo "── Migrations complete ──"
+
+echo "── Starting DevConnect API ──"
 exec node dist/main

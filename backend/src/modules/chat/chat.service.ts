@@ -41,15 +41,37 @@ export class ChatService {
 
     if (existing) return existing;
 
-    return this.prisma.conversation.create({
-      data: {
-        isGroup: false,
-        members: { create: [{ userId }, { userId: targetUserId }] },
-      },
-      include: {
-        members: { include: { user: { include: { profile: true } } } },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const doubleCheck = await tx.conversation.findFirst({
+        where: {
+          isGroup: false,
+          matchId: null,
+          projectId: null,
+          members: {
+            every: { userId: { in: [userId, targetUserId] } },
+          },
+        },
+      });
+      if (doubleCheck) {
+        return tx.conversation.findUnique({
+          where: { id: doubleCheck.id },
+          include: {
+            members: { include: { user: { include: { profile: true } } } },
+            messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
+          },
+        });
+      }
+
+      return tx.conversation.create({
+        data: {
+          isGroup: false,
+          members: { create: [{ userId }, { userId: targetUserId }] },
+        },
+        include: {
+          members: { include: { user: { include: { profile: true } } } },
+          messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
+        },
+      });
     });
   }
 

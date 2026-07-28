@@ -123,13 +123,16 @@ export class UsersService {
     return endorsement;
   }
 
-  async searchProfiles(query: string, limit = 20, offset = 0) {
+  async searchProfiles(query: string, limit = 20, offset = 0, cursor?: string) {
+    const take = Math.min(limit, 50);
+
     if (!query || query.length < 2) {
       return this.prisma.profile.findMany({
         where: { isPublic: true },
         include: { skills: { include: { skill: true } }, user: { select: { id: true } } },
-        take: limit,
-        skip: offset,
+        take,
+        skip: cursor ? 1 : undefined,
+        ...(cursor ? { cursor: { id: cursor } } : {}),
         orderBy: { reputationScore: 'desc' },
       });
     }
@@ -146,8 +149,9 @@ export class UsersService {
         ],
       },
       include: { skills: { include: { skill: true } }, user: { select: { id: true } } },
-      take: limit,
-      skip: offset,
+      take,
+      skip: cursor ? 1 : offset,
+      ...(cursor ? { cursor: { id: cursor } } : {}),
       orderBy: { reputationScore: 'desc' },
     });
   }

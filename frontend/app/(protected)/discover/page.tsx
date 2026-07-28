@@ -208,7 +208,7 @@ export default function DiscoverPage() {
   if (!current) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-6 text-center">
-        <p className="text-lg font-semibold">You've seen everyone in your area.</p>
+        <p className="text-lg font-semibold">You&apos;ve seen everyone in your area.</p>
         <p className="mt-1 text-sm text-muted-foreground">Adjust filters or check back later.</p>
         <Button className="mt-6" onClick={loadProfiles}><RefreshCw size={16} className="mr-2" /> Refresh</Button>
       </div>

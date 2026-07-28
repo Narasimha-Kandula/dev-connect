@@ -19,7 +19,13 @@ export class AdminService {
       take: Math.min(pageSize, 100),
       orderBy: { createdAt: 'desc' },
       select: {
-        id: true, email: true, role: true, isSuspended: true, isBanned: true, createdAt: true, lastLoginAt: true,
+        id: true,
+        email: true,
+        role: true,
+        isSuspended: true,
+        isBanned: true,
+        createdAt: true,
+        lastLoginAt: true,
         profile: true,
         _count: { select: { sessions: true, matchesAsUserOne: true, matchesAsUserTwo: true } },
       },
@@ -51,11 +57,13 @@ export class AdminService {
     });
   }
 
-  listReports(status?: string) {
+  listReports(status?: string, page = 1, pageSize = 25) {
     return this.prisma.report.findMany({
       where: status ? { status } : undefined,
       orderBy: { createdAt: 'desc' },
       include: { reporter: { include: { profile: true } } },
+      take: Math.min(pageSize, 100),
+      skip: (page - 1) * pageSize,
     });
   }
 

@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { NotificationType, NotificationChannel } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
+import { SetPreferenceDto } from './dto/notification.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
@@ -32,10 +32,8 @@ export class NotificationsController {
   @Post('preferences')
   setPreference(
     @CurrentUser('id') userId: string,
-    @Body('type') type: NotificationType,
-    @Body('channel') channel: NotificationChannel,
-    @Body('enabled') enabled: boolean,
+    @Body() dto: SetPreferenceDto,
   ) {
-    return this.notificationsService.setPreference(userId, type, channel, enabled);
+    return this.notificationsService.setPreference(userId, dto.type, dto.channel, dto.enabled);
   }
 }

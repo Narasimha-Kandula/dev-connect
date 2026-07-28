@@ -60,7 +60,7 @@ export default function DevelopersPage() {
             All endpoints require authentication via Bearer token in the Authorization header.
           </p>
           <div className="mt-4 rounded-lg bg-muted p-4 font-mono text-xs">
-            <p className="text-success">$ curl -H "Authorization: Bearer YOUR_API_KEY" \</p>
+            <p className="text-success">$ curl -H &quot;Authorization: Bearer YOUR_API_KEY&quot; \</p>
             <p className="text-success">&nbsp;&nbsp;https://api.devconnect.dev/api/v1/users/me</p>
           </div>
         </CardContent>

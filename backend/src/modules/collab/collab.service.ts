@@ -84,11 +84,13 @@ export class CollabService {
     return { success: true };
   }
 
-  listActiveRooms(userId: string) {
+  listActiveRooms(userId: string, limit = 50, cursor?: string) {
     return this.prisma.collabRoom.findMany({
       where: { isActive: true, participants: { some: { userId, leftAt: null } } },
       include: { participants: { include: { user: { include: { profile: true } } } } },
       orderBy: { createdAt: 'desc' },
+      take: Math.min(limit, 100),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
   }
 

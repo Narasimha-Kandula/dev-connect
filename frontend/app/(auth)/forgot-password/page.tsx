@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
         <CardHeader>
           <CardTitle>Reset Your Password</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Enter your email and we'll send you a reset link.
+            Enter your email and we&apos;ll send you a reset link.
           </p>
         </CardHeader>
         <CardContent>

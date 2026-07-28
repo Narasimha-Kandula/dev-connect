@@ -184,11 +184,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const userId = client.data.userId;
     if (!userId) return { error: 'Unauthorized' };
     if (!data.content || data.content.length > 10000) return { error: 'Invalid content length' };
-    const message = await this.chatService.editMessage(data.messageId, userId, data.content);
     const meta = await this.chatService.getMessageById(data.messageId);
-    if (meta) {
-      client.to(`conversation:${meta.conversationId}`).emit('message:updated', message);
-    }
+    if (!meta) return { error: 'Message not found' };
+    const isMember = await this.chatService.isMember(meta.conversationId, userId);
+    if (!isMember) return { error: 'Not a member of this conversation' };
+    const message = await this.chatService.editMessage(data.messageId, userId, data.content);
+    client.to(`conversation:${meta.conversationId}`).emit('message:updated', message);
     return message;
   }
 

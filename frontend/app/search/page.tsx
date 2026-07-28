@@ -52,7 +52,7 @@ export default function SearchPage() {
       {searched && results.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No results found for "{query}".
+            No results found for &quot;{query}&quot;.
           </CardContent>
         </Card>
       )}

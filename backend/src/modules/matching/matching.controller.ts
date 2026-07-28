@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { IsIn, IsUUID } from 'class-validator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -23,13 +23,21 @@ export class MatchingController {
   }
 
   @Get('matches')
-  matches(@CurrentUser('id') userId: string) {
-    return this.matchingService.listMatches(userId);
+  matches(
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.matchingService.listMatches(userId, limit ? parseInt(limit, 10) : undefined, cursor);
   }
 
   @Get('connections')
-  connections(@CurrentUser('id') userId: string) {
-    return this.matchingService.listConnections(userId);
+  connections(
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.matchingService.listConnections(userId, limit ? parseInt(limit, 10) : undefined, cursor);
   }
 
   @Post('matches/:id/archive')

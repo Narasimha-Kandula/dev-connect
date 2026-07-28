@@ -51,7 +51,7 @@ export default function FAQPage() {
           Everything You Need to Know
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Quick answers to common questions. Can't find what you need? <a href="/contact" className="text-foreground underline">Contact us</a>.
+          Quick answers to common questions. Can&apos;t find what you need? <a href="/contact" className="text-foreground underline">Contact us</a>.
         </p>
       </div>
 

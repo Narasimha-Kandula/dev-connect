@@ -82,11 +82,13 @@ export class ProjectsService {
     return project;
   }
 
-  async getMyProjects(userId: string) {
+  async getMyProjects(userId: string, limit = 50, cursor?: string) {
     return this.prisma.project.findMany({
       where: { OR: [{ ownerId: userId }, { members: { some: { userId } } }] },
       include: { owner: { include: { profile: true } }, members: { include: { user: { include: { profile: true } } } } },
       orderBy: { updatedAt: 'desc' },
+      take: Math.min(limit, 100),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
   }
 
