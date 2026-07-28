@@ -70,14 +70,24 @@ export class UsersService {
 
     await this.prisma.profileSkill.deleteMany({ where: { profileId: profile.id } });
 
+    const skillIds: string[] = [];
     for (const s of skillNames) {
       const skill = await this.prisma.skill.upsert({
         where: { name: s.name },
         update: {},
         create: { name: s.name },
       });
-      await this.prisma.profileSkill.create({
-        data: { profileId: profile.id, skillId: skill.id, proficiency: s.proficiency ?? 3 },
+      skillIds.push(skill.id);
+    }
+
+    if (skillIds.length > 0) {
+      await this.prisma.profileSkill.createMany({
+        data: skillIds.map((skillId, i) => ({
+          profileId: profile.id,
+          skillId,
+          proficiency: skillNames[i].proficiency ?? 3,
+        })),
+        skipDuplicates: true,
       });
     }
 
@@ -143,12 +153,15 @@ export class UsersService {
   }
 
   async syncGitHub(userId: string, username: string) {
+    if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(username)) {
+      throw new NotFoundException('Invalid GitHub username format.');
+    }
     try {
-      const res = await fetch(`https://api.github.com/users/${username}`);
+      const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`);
       if (!res.ok) throw new Error('GitHub user not found');
       const data = await res.json();
 
-      const reposRes = await fetch(`https://api.github.com/users/${username}/repos?per_page=50`);
+      const reposRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=50`);
       const repos = reposRes.ok ? await reposRes.json() : [];
 
       const totalStars = repos.reduce((sum: number, r: { stargazers_count?: number }) => sum + (r.stargazers_count ?? 0), 0);

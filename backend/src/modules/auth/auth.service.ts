@@ -17,10 +17,13 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { CreateApiKeyDto } from './dto/api-key.dto';
 
 const SALT_ROUNDS = 12;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private loginAttempts = new Map<string, { count: number; lockedUntil?: number }>();
 
   constructor(
     private prisma: PrismaService,
@@ -69,6 +72,12 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    const attempts = this.loginAttempts.get(dto.email);
+    if (attempts?.lockedUntil && attempts.lockedUntil > Date.now()) {
+      const remaining = Math.ceil((attempts.lockedUntil - Date.now()) / 60000);
+      throw new UnauthorizedException(`Account is temporarily locked. Try again in ${remaining} minute(s).`);
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: {
@@ -76,6 +85,7 @@ export class AuthService {
       },
     });
     if (!user || !user.passwordHash) {
+      this.recordFailedLogin(dto.email);
       throw new UnauthorizedException('Invalid email or password. Please try again.');
     }
 
@@ -84,7 +94,12 @@ export class AuthService {
     }
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) throw new UnauthorizedException('Invalid email or password. Please try again.');
+    if (!valid) {
+      this.recordFailedLogin(dto.email);
+      throw new UnauthorizedException('Invalid email or password. Please try again.');
+    }
+
+    this.loginAttempts.delete(dto.email);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -93,6 +108,16 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, user.email, user.role);
     return { user: this.sanitize(user), ...tokens };
+  }
+
+  private recordFailedLogin(email: string) {
+    const current = this.loginAttempts.get(email) ?? { count: 0 };
+    current.count++;
+    if (current.count >= MAX_LOGIN_ATTEMPTS) {
+      current.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+      this.logger.warn(`Account locked due to ${current.count} failed attempts: ${email}`);
+    }
+    this.loginAttempts.set(email, current);
   }
 
   async refresh(refreshToken: string) {

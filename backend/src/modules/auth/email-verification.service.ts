@@ -14,9 +14,10 @@ export class EmailVerificationService {
 
   async sendVerification(userId: string, email: string): Promise<void> {
     const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     await this.prisma.user.update({
       where: { id: userId },
-      data: { emailVerificationToken: token },
+      data: { emailVerificationToken: `${token}:${expiresAt.toISOString()}` },
     });
 
     const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/verify-email?token=${token}`;
@@ -37,9 +38,18 @@ export class EmailVerificationService {
 
   async verify(token: string) {
     const user = await this.prisma.user.findFirst({
-      where: { emailVerificationToken: token },
+      where: { emailVerificationToken: { contains: token } },
     });
     if (!user) throw new BadRequestException('Invalid verification token');
+
+    const stored = user.emailVerificationToken ?? '';
+    const parts = stored.split(':');
+    if (parts.length === 2) {
+      const expiresAt = new Date(parts[1]);
+      if (expiresAt < new Date()) {
+        throw new BadRequestException('Verification token has expired. Please request a new one.');
+      }
+    }
 
     await this.prisma.user.update({
       where: { id: user.id },
