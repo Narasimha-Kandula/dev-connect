@@ -372,8 +372,15 @@ export function useChatSocket(conversationId?: string) {
 
   const setInitialMessages = useCallback((msgs: Message[]) => {
     if (!messagesLoadedRef.current) {
-      setMessages(msgs);
       messagesLoadedRef.current = true;
+      setMessages((prev) => {
+        if (prev.length === 0) return msgs;
+        const existingIds = new Set(prev.map((m) => m.id));
+        const newMsgs = msgs.filter((m) => !existingIds.has(m.id));
+        return [...prev, ...newMsgs].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
     }
   }, []);
 

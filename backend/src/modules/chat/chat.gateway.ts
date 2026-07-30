@@ -21,6 +21,10 @@ interface AuthedSocket extends Socket {
   data: { userId?: string };
 }
 
+// DEBUG: Set to true to test global emit (ignores room targeting)
+// If messages appear with this true, the issue is room membership
+const FORCE_GLOBAL_EMIT = false;
+
 @Injectable()
 @WebSocketGateway({
   cors: { origin: process.env.CORS_ORIGIN?.split(',') ?? '*', credentials: true },
@@ -206,13 +210,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
       const payload = { ...saved, tempId: data.tempId };
       const room = `conversation:${data.conversationId}`;
       this.logger.debug(`MESSAGE SAVED: ${saved.id} | EMITTING TO ROOM: ${room} | CONTENT: ${data.content?.slice(0, 50)}`);
-      this.server.to(room).emit('message:new', payload);
-      // Also emit to each member's user room for cross-page delivery
-      const members = await this.chatService.getConversationMembers(data.conversationId);
-      for (const member of members) {
-        if (member.userId !== userId) {
-          this.logger.debug(`EMITTING to user room: user:${member.userId}`);
-          this.server.to(`user:${member.userId}`).emit('message:new', payload);
+
+      if (FORCE_GLOBAL_EMIT) {
+        this.logger.warn('FORCE_GLOBAL_EMIT is ON — broadcasting to ALL connected clients');
+        this.server.emit('message:new', payload);
+      } else {
+        this.server.to(room).emit('message:new', payload);
+        // Also emit to each member's user room for cross-page delivery
+        const members = await this.chatService.getConversationMembers(data.conversationId);
+        for (const member of members) {
+          if (member.userId !== userId) {
+            this.logger.debug(`EMITTING to user room: user:${member.userId}`);
+            this.server.to(`user:${member.userId}`).emit('message:new', payload);
+          }
         }
       }
       return saved;
