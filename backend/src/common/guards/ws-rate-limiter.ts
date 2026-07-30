@@ -28,16 +28,20 @@ export async function checkWsRateLimit(
   const now = Date.now();
   const window = opts.duration * 1000;
 
-  const multi = redis.multi();
-  multi.zremrangebyscore(key, 0, now - window);
-  multi.zcard(key);
-  multi.zadd(key, now.toString(), `${now}-${Math.random()}`);
-  multi.expire(key, opts.duration);
+  try {
+    const multi = redis.multi();
+    multi.zremrangebyscore(key, 0, now - window);
+    multi.zcard(key);
+    multi.zadd(key, now.toString(), `${now}-${Math.random()}`);
+    multi.expire(key, opts.duration);
 
-  const results = await multi.exec();
-  const count = (results?.[1]?.[1] as number) ?? 0;
+    const results = await multi.exec();
+    const count = (results?.[1]?.[1] as number) ?? 0;
 
-  const allowed = count < opts.points;
+    const allowed = count < opts.points;
 
-  return { allowed, remaining: Math.max(0, opts.points - count) };
+    return { allowed, remaining: Math.max(0, opts.points - count) };
+  } catch {
+    return { allowed: true, remaining: Infinity };
+  }
 }
