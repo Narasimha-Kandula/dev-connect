@@ -87,6 +87,7 @@ export function useChatSocket(conversationId?: string) {
     const onConnect = () => {
       setIsConnected(true);
       if (conversationId) {
+        console.log('🔗 JOINING ROOM on connect:', conversationId);
         socket.emit('conversation:join', conversationId);
         currentConvRef.current = conversationId;
       }
@@ -96,7 +97,11 @@ export function useChatSocket(conversationId?: string) {
     const onDisconnect = () => setIsConnected(false);
 
     const onMessageNew = (msg: Message & { tempId?: string }) => {
-      if (conversationId && msg.conversationId !== conversationId) return;
+      console.log('📥 RECEIVED message:new', { msgId: msg.id, convId: msg.conversationId, activeConvId: conversationId, content: msg.content?.slice(0, 50) });
+      if (conversationId && msg.conversationId !== conversationId) {
+        console.log('⏭️ IGNORED — conversationId mismatch');
+        return;
+      }
       setMessages((prev) => {
         const tempMatch = msg.tempId ? prev.findIndex((m) => m.id === msg.tempId) : -1;
         if (tempMatch >= 0) {
@@ -224,13 +229,17 @@ export function useChatSocket(conversationId?: string) {
     if (!token || !userId) return;
     const socket = getSocket(token, userId);
 
+    console.log('🔄 EFFECT 2 — conversationId:', conversationId, 'currentConvRef:', currentConvRef.current);
+
     if (conversationId && conversationId !== currentConvRef.current) {
       if (currentConvRef.current) {
+        console.log('🚪 LEAVING conversation:', currentConvRef.current);
         socket.emit('conversation:leave', currentConvRef.current);
         setMessages([]);
         setTypingUsers(new Set());
         messagesLoadedRef.current = false;
       }
+      console.log('🚪 JOINING conversation:', conversationId);
       socket.emit('conversation:join', conversationId);
       currentConvRef.current = conversationId;
     }
@@ -299,6 +308,8 @@ export function useChatSocket(conversationId?: string) {
           });
         return;
       }
+
+      console.log('📤 SENDING MESSAGE:', { conversationId, content: content?.slice(0, 50), tempId, senderId: userId });
 
       socket.emit(
         'message:send',

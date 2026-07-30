@@ -166,11 +166,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     if (!userId) return { error: 'Unauthorized' };
 
     const isMember = await this.chatService.isMember(conversationId, userId);
-    if (!isMember) return { error: 'Not a member of this conversation' };
+    if (!isMember) {
+      this.logger.warn(`User ${userId} tried to join non-member conversation ${conversationId}`);
+      return { error: 'Not a member of this conversation' };
+    }
 
-    client.join(`conversation:${conversationId}`);
+    const room = `conversation:${conversationId}`;
+    client.join(room);
     this.trackConversationJoin(userId, conversationId);
-    this.logger.debug(`User ${userId} joined conversation ${conversationId}`);
+    this.logger.debug(`JOINED ROOM: ${room} | USER: ${userId} | SOCKET: ${client.id}`);
     return { success: true };
   }
 
@@ -200,16 +204,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     try {
       const saved = await this.chatService.sendMessage(data.conversationId, userId, data.content, data.attachments);
       const payload = { ...saved, tempId: data.tempId };
-      this.server.to(`conversation:${data.conversationId}`).emit('message:new', payload);
+      const room = `conversation:${data.conversationId}`;
+      this.logger.debug(`MESSAGE SAVED: ${saved.id} | EMITTING TO ROOM: ${room} | CONTENT: ${data.content?.slice(0, 50)}`);
+      this.server.to(room).emit('message:new', payload);
       // Also emit to each member's user room for cross-page delivery
       const members = await this.chatService.getConversationMembers(data.conversationId);
       for (const member of members) {
         if (member.userId !== userId) {
+          this.logger.debug(`EMITTING to user room: user:${member.userId}`);
           this.server.to(`user:${member.userId}`).emit('message:new', payload);
         }
       }
       return saved;
     } catch (e) {
+      this.logger.error(`Failed to send message: ${(e as Error).message}`);
       return { error: (e as Error).message };
     }
   }
