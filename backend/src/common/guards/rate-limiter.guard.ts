@@ -37,17 +37,21 @@ export class RateLimiterGuard implements CanActivate {
     const now = Date.now();
     const window = config.duration * 1000;
 
-    const multi = this.redis.multi();
-    multi.zremrangebyscore(key, 0, now - window);
-    multi.zadd(key, now, `${now}-${Math.random()}`);
-    multi.zcard(key);
-    multi.expire(key, config.duration);
+    try {
+      const multi = this.redis.multi();
+      multi.zremrangebyscore(key, 0, now - window);
+      multi.zadd(key, now, `${now}-${Math.random()}`);
+      multi.zcard(key);
+      multi.expire(key, config.duration);
 
-    const results = await multi.exec();
-    const count = results?.[2]?.[1] as number ?? 0;
+      const results = await multi.exec();
+      const count = results?.[2]?.[1] as number ?? 0;
 
-    if (count > config.points) {
-      throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+      if (count > config.points) {
+        throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+      }
+    } catch {
+      // Redis unavailable — allow request through
     }
     return true;
   }
