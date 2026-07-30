@@ -28,7 +28,7 @@ function getSocket(token: string, userId: string): Socket {
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000';
   globalSocket = io(wsUrl, {
     auth: { token },
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionAttempts: 10,
