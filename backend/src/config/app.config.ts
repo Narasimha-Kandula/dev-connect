@@ -40,6 +40,31 @@ export default registerAs('app', () => ({
     realtime: process.env.ENABLE_REALTIME !== 'false',
   },
 
+  firebase: {
+    serviceAccountKey: process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+  },
+
+  apns: {
+    key: process.env.APNS_KEY,
+    keyId: process.env.APNS_KEY_ID,
+    teamId: process.env.APNS_TEAM_ID,
+    bundleId: process.env.APNS_BUNDLE_ID ?? 'com.devconnect.app',
+  },
+
+  fraud: {
+    swipeThreshold: parseInt(process.env.FRAUD_SWIPE_THRESHOLD ?? '50', 10),
+    requestThreshold: parseInt(process.env.FRAUD_REQUEST_THRESHOLD ?? '200', 10),
+    minProfileCompleteness: parseInt(process.env.FRAUD_MIN_PROFILE_COMPLETENESS ?? '20', 10),
+    captchaSiteKey: process.env.CAPTCHA_SITE_KEY ?? '',
+    captchaSecretKey: process.env.CAPTCHA_SECRET_KEY ?? '',
+  },
+
+  swipeLimits: {
+    free: parseInt(process.env.SWIPE_LIMIT_FREE ?? '20', 10),
+    pro: parseInt(process.env.SWIPE_LIMIT_PRO ?? '100', 10),
+  },
+
   oauth: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID ?? '',
@@ -48,7 +73,7 @@ export default registerAs('app', () => ({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      redirectUri: process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3000/auth/callback/google',
+      redirectUri: (process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3000/auth/google/callback').split(',')[0],
     },
   },
 }));

@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
 import { CreateTaskDto, UpdateTaskStatusDto, RespondToInvitationDto } from './dto/task.dto';
 
 @Controller('projects')
@@ -44,7 +44,7 @@ export class ProjectsController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(@CurrentUser('id') userId: string, @Param('id') id: string, @Body() dto: Partial<CreateProjectDto>) {
+  update(@CurrentUser('id') userId: string, @Param('id') id: string, @Body() dto: UpdateProjectDto) {
     return this.projectsService.update(id, userId, dto);
   }
 
@@ -78,8 +78,8 @@ export class ProjectsController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/milestones')
-  createMilestone(@Param('id') id: string, @Body('title') title: string, @Body('description') description?: string, @Body('dueDate') dueDate?: string) {
-    return this.milestonesService.create(id, title, description, dueDate);
+  createMilestone(@CurrentUser('id') userId: string, @Param('id') id: string, @Body('title') title: string, @Body('description') description?: string, @Body('dueDate') dueDate?: string) {
+    return this.milestonesService.create(id, title, userId, description, dueDate);
   }
 
   @Get(':id/milestones')
@@ -89,19 +89,25 @@ export class ProjectsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('milestones/:id')
-  updateMilestone(@Param('id') id: string, @Body('status') status: string) {
-    return this.milestonesService.updateStatus(id, status);
+  updateMilestone(@CurrentUser('id') userId: string, @Param('id') id: string, @Body('status') status: string) {
+    return this.milestonesService.updateStatus(id, status, userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete('milestones/:id')
-  deleteMilestone(@Param('id') id: string) {
-    return this.milestonesService.delete(id);
+  deleteMilestone(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.milestonesService.delete(id, userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/invitations/:invitationId/respond')
   respondToInvitation(@CurrentUser('id') userId: string, @Param('invitationId') invitationId: string, @Body() dto: RespondToInvitationDto) {
     return this.projectsService.respondToInvitation(invitationId, userId, dto.action);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/members')
+  addMember(@CurrentUser('id') userId: string, @Param('id') id: string, @Body('targetUserId') targetUserId: string, @Body('role') role?: 'CONTRIBUTOR' | 'VIEWER') {
+    return this.projectsService.addMember(id, userId, targetUserId, role);
   }
 }

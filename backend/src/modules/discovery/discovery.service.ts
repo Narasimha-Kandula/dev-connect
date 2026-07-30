@@ -1,75 +1,77 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { REDIS_CLIENT } from '../../common/redis/redis.module';
+import { expandSkillNames, getExpandedSkillTerms } from '../../common/utils/skill-expansion';
 import Redis from 'ioredis';
 
 @Injectable()
 export class DiscoveryService {
   private readonly logger = new Logger(DiscoveryService.name);
-  private redis: Redis | null = null;
-  private redisAvailable = false;
 
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
-  ) {
-    this.initRedis();
-  }
-
-  private initRedis() {
-    try {
-      const url = this.config.get<string>('REDIS_URL');
-      const host = this.config.get('redis.host');
-      const port = this.config.get('redis.port');
-      const password = this.config.get('redis.password');
-
-      if (!url && !host) return;
-
-      const opts: any = url
-        ? { url, maxRetriesPerRequest: 1, retryStrategy: () => null }
-        : { host, port, password, maxRetriesPerRequest: 1, retryStrategy: () => null };
-
-      if (url?.startsWith('rediss://')) {
-        opts.tls = { rejectUnauthorized: false };
-      }
-
-      this.redis = new Redis(opts);
-      this.redis.on('error', () => { this.redisAvailable = false; });
-      this.redis.on('connect', () => { this.redisAvailable = true; });
-    } catch { /* redis unavailable */ }
-  }
+    @Inject(REDIS_CLIENT) private redis: Redis | null,
+  ) {}
 
   async getFeed(userId: string, filters: {
     skill?: string;
     location?: string;
     experienceLevel?: string;
+    sort?: string;
     limit?: number;
     offset?: number;
+    hideSelf?: string;
+    remote?: string;
+    available?: string;
   } = {}) {
     const limit = filters.limit ?? 20;
     const offset = filters.offset ?? 0;
 
     const cacheKey = `discover:${userId}:${JSON.stringify(filters)}`;
-    if (this.redisAvailable) {
+    if (this.redis) {
       try {
-        const cached = await this.redis!.get(cacheKey);
+        const cached = await this.redis.get(cacheKey);
         if (cached) return JSON.parse(cached);
-      } catch { /* redis miss */ }
+      } catch { this.logger.debug('Redis cache miss for discover feed'); }
     }
+
+    const userProfile = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { skills: { select: { skillId: true } } },
+    });
+    const userSkillIds = userProfile?.skills.map((s) => s.skillId) ?? [];
 
     const conditions = [
       'p.is_public = true',
-      'p.user_id != $1',
       'NOT EXISTS (SELECT 1 FROM swipes sw WHERE sw.source_id = $1 AND sw.target_id = p.user_id)',
       'NOT EXISTS (SELECT 1 FROM blocked_users b WHERE (b.blocker_id = $1 AND b.blocked_id = p.user_id) OR (b.blocked_id = $1 AND b.blocker_id = p.user_id))',
     ];
     const params: unknown[] = [userId];
     let paramIndex = 2;
 
-    if (filters.skill) {
-      conditions.push(`EXISTS (SELECT 1 FROM profile_skills ps JOIN skills s ON s.id = ps.skill_id WHERE ps.profile_id = p.id AND s.name ILIKE $${paramIndex})`);
-      params.push(filters.skill);
+    if (filters.hideSelf === 'true') {
+      conditions.push(`p.user_id != $${paramIndex}`);
+      params.push(userId);
       paramIndex++;
+    }
+
+    if (filters.skill) {
+      const rawSkillNames = filters.skill.split(',').map((s) => s.trim()).filter(Boolean);
+      const skillNames = expandSkillNames(rawSkillNames);
+      if (skillNames.length === 1) {
+        conditions.push(`EXISTS (SELECT 1 FROM profile_skills ps JOIN skills s ON s.id = ps.skill_id WHERE ps.profile_id = p.id AND s.name ILIKE $${paramIndex})`);
+        params.push(skillNames[0]);
+        paramIndex++;
+      } else if (skillNames.length > 1) {
+        const skillConditions = skillNames.map((_, i) =>
+          `EXISTS (SELECT 1 FROM profile_skills ps${i} JOIN skills s${i} ON s${i}.id = ps${i}.skill_id WHERE ps${i}.profile_id = p.id AND s${i}.name ILIKE $${paramIndex + i})`
+        );
+        conditions.push(`(${skillConditions.join(' OR ')})`);
+        skillNames.forEach((s) => params.push(s));
+        paramIndex += skillNames.length;
+      }
     }
 
     if (filters.location) {
@@ -84,7 +86,30 @@ export class DiscoveryService {
       paramIndex++;
     }
 
+    if (filters.remote === 'true') {
+      conditions.push(`p.location ILIKE '%remote%'`);
+    }
+
+    if (filters.available === 'true') {
+      conditions.push(`p.availability::text IN ('OPEN_TO_WORK', 'HIRING', 'OPEN_TO_COLLAB')`);
+    }
+
     const whereClause = conditions.join('\n      AND ');
+
+    let orderClause: string;
+    if (filters.sort === 'newest') {
+      orderClause = 'p.created_at DESC';
+    } else if (userSkillIds.length > 0) {
+      const skillIdsList = userSkillIds.map((_, i) => `$${paramIndex + i}`).join(', ');
+      orderClause = `(
+        SELECT COUNT(*) FROM profile_skills ps
+        WHERE ps.profile_id = p.id AND ps.skill_id IN (${skillIdsList})
+      ) DESC, p.reputation_score DESC`;
+      userSkillIds.forEach((sid) => params.push(sid));
+      paramIndex += userSkillIds.length;
+    } else {
+      orderClause = 'p.reputation_score DESC';
+    }
 
     const rows = await this.prisma.$queryRawUnsafe<
       Array<{
@@ -109,7 +134,7 @@ export class DiscoveryService {
         )::text AS skills_json
       FROM profiles p
       WHERE ${whereClause}
-      ORDER BY p.reputation_score DESC
+      ORDER BY ${orderClause}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `, ...params, limit, offset);
 
@@ -126,8 +151,8 @@ export class DiscoveryService {
       skills: JSON.parse(r.skills_json ?? '[]'),
     }));
 
-    if (this.redisAvailable) {
-      this.redis!.setex(cacheKey, 30, JSON.stringify(result)).catch(() => {});
+    if (this.redis) {
+      this.redis.setex(cacheKey, 30, JSON.stringify(result)).catch(() => {});
     }
 
     return result;

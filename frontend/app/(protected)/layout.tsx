@@ -3,6 +3,8 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import SubHeader from '@/components/sub-header';
+import Sidebar from '@/components/sidebar';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { initialized, isAuthenticated } = useAuth();
@@ -26,5 +28,15 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-[calc(100vh-4rem)]">
+      <Sidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <SubHeader />
+        <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }

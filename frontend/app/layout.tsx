@@ -2,24 +2,36 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/components/auth-provider';
+import { NotificationProvider } from '@/components/notification-provider';
 import { Navbar } from '@/components/navbar';
-import SubHeader from '@/components/sub-header';
 import { Toaster } from 'sonner';
+import { OfflineIndicator } from '@/components/offline-indicator';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'DevConnect — Find Your Next Tech Co-Founder',
+  metadataBase: new URL('https://devconnect.dev'),
+  title: {
+    default: 'DevConnect — Find Your Next Tech Co-Founder',
+    template: '%s — DevConnect',
+  },
   description:
     'Discover, match, and collaborate with AI-vetted developers in real-time. Build faster, launch stronger.',
   openGraph: {
     title: 'DevConnect — Find Your Next Tech Co-Founder',
     description: 'Discover, match, and collaborate with AI-vetted developers in real-time.',
+    url: 'https://devconnect.dev',
+    siteName: 'DevConnect',
+    locale: 'en_US',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'DevConnect — Find Your Next Tech Co-Founder',
     description: 'Discover, match, and collaborate with AI-vetted developers in real-time.',
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
@@ -38,8 +50,6 @@ function Footer() {
           <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
             <Link href="/features" className="hover:text-foreground">Features</Link>
             <Link href="/how-it-works" className="hover:text-foreground">How It Works</Link>
-            <Link href="/demo" className="hover:text-foreground">Demo</Link>
-            <Link href="/testimonials" className="hover:text-foreground">Testimonials</Link>
             <Link href="/faq" className="hover:text-foreground">FAQ</Link>
           </div>
         </div>
@@ -48,10 +58,10 @@ function Footer() {
           <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
             <Link href="/about" className="hover:text-foreground">About</Link>
             <Link href="/contact" className="hover:text-foreground">Contact</Link>
+            <Link href="/safety" className="hover:text-foreground">Safety</Link>
             <Link href="/security" className="hover:text-foreground">Security</Link>
             <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-foreground">Terms of Service</Link>
-            <Link href="/cookies" className="hover:text-foreground">Cookie Policy</Link>
           </div>
         </div>
         <div>
@@ -73,14 +83,24 @@ function Footer() {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+        >
+          Skip to main content
+        </a>
         <ThemeProvider>
           <AuthProvider>
-            <Navbar />
-            <SubHeader />
-            <main className="min-h-screen">{children}</main>
-            <Footer />
-            <Toaster richColors position="top-right" />
+            <NotificationProvider>
+              <Navbar />
+              <OfflineIndicator />
+              <main id="main-content" className="min-h-screen outline-none" tabIndex={-1}>
+                {children}
+              </main>
+              <Footer />
+              <Toaster richColors position="top-right" />
+            </NotificationProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

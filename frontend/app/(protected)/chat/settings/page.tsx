@@ -1,13 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Bell, Eye, Ban } from 'lucide-react';
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/stores/auth-store';
+import { ArrowLeft, Bell, Eye, Ban, UserX } from 'lucide-react';
 
 export default function ChatSettingsPage() {
+  const token = useAuthStore((s) => s.token);
   const [prefs, setPrefs] = useState({ messageSound: true, preview: true, typingIndicators: true, readReceipts: true });
+  const [blockedCount, setBlockedCount] = useState(0);
+
+  useEffect(() => {
+    if (!token) return;
+    api.get<unknown[]>('/users/me/blocked', token)
+      .then((data) => setBlockedCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => {});
+  }, [token]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-6 py-10">
@@ -43,7 +54,13 @@ export default function ChatSettingsPage() {
       <Card>
         <CardHeader><CardTitle><Ban size={16} className="mr-1 inline" /> Blocked Users</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No blocked users.</p>
+          {blockedCount > 0 ? (
+            <p className="text-sm text-muted-foreground">{blockedCount} user{blockedCount === 1 ? '' : 's'} blocked.</p>
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <UserX size={14} /> <span>No blocked users.</span>
+            </div>
+          )}
           <Link href="/blocked"><Button variant="secondary" size="sm" className="mt-2">Manage Blocked Users</Button></Link>
         </CardContent>
       </Card>

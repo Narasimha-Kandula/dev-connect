@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
-import { Compass, Plus, MessageCircle, Sparkles, Activity, Bell } from 'lucide-react';
+import { Compass, Plus, MessageCircle, Sparkles, Activity, Bell, Mail } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/skeletons';
 
 export default function DashboardPage() {
@@ -16,11 +16,13 @@ export default function DashboardPage() {
   const [matchCount, setMatchCount] = useState(0);
   const [conversationCount, setConversationCount] = useState(0);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [invitationCount, setInvitationCount] = useState(0);
   const [recentMatches, setRecentMatches] = useState<Array<{ id: string; userOne?: { profile?: { displayName?: string } }; userTwo?: { profile?: { displayName?: string } } }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!token) return;
+    let mounted = true;
     setUserName(user?.profile?.displayName ?? 'there');
     setCompleteness(user?.profile?.profileCompleteness ?? 0);
 
@@ -28,7 +30,9 @@ export default function DashboardPage() {
       api.get<Array<{ id: string }>>('/matches', token),
       api.get<Array<{ id: string }>>('/chat/conversations', token),
       api.get<Array<{ id: string }>>('/notifications?limit=1', token),
-    ]).then(([matchesResult, convResult, notifResult]) => {
+      api.get<Array<{ id: string; status: string }>>('/invite/received?status=PENDING', token).catch(() => []),
+    ]).then(([matchesResult, convResult, notifResult, inviteResult]) => {
+      if (!mounted) return;
       if (matchesResult.status === 'fulfilled') {
         const matches = matchesResult.value ?? [];
         setMatchCount(matches.length);
@@ -36,7 +40,10 @@ export default function DashboardPage() {
       }
       if (convResult.status === 'fulfilled') setConversationCount(convResult.value?.length ?? 0);
       if (notifResult.status === 'fulfilled') setNotificationCount(notifResult.value?.length ?? 0);
-    }).finally(() => setLoading(false));
+      if (inviteResult.status === 'fulfilled') setInvitationCount(inviteResult.value?.length ?? 0);
+    }).finally(() => { if (mounted) setLoading(false); });
+
+    return () => { mounted = false; };
   }, [token, user]);
 
   return (
@@ -49,7 +56,7 @@ export default function DashboardPage() {
         <Link href="/onboarding"><Button variant="secondary" size="sm"><Sparkles size={14} className="mr-1" /> Complete Profile</Button></Link>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-5">
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">Profile Completeness</p>
@@ -91,6 +98,16 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Invitations</p>
+            {loading ? (
+              <div className="mt-2 h-8 w-12 animate-pulse rounded bg-muted" />
+            ) : (
+              <p className="mt-2 text-3xl font-bold text-primary">{invitationCount}</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -98,6 +115,7 @@ export default function DashboardPage() {
         <Link href="/projects/create"><Button variant="secondary"><Plus size={16} className="mr-1" /> Create Project</Button></Link>
         <Link href="/chat"><Button variant="secondary"><MessageCircle size={16} className="mr-1" /> Messages</Button></Link>
         <Link href="/notifications"><Button variant="ghost"><Bell size={16} className="mr-1" /> Notifications</Button></Link>
+        <Link href="/invitations"><Button variant="ghost"><Mail size={16} className="mr-1" /> Invitations</Button></Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

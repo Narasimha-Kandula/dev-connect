@@ -214,6 +214,79 @@ export class AuthService {
     return { success: true };
   }
 
+  async deleteAccount(userId: string, password?: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    if (user.passwordHash && password) {
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) throw new UnauthorizedException('Password is incorrect.');
+    }
+
+    await this.prisma.session.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    const anonymizedEmail = `deleted-${userId.slice(0, 8)}@anon.devconnect.app`;
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: anonymizedEmail,
+        passwordHash: null,
+        emailVerified: false,
+        deletedAt: new Date(),
+        scheduledDeleteAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await this.prisma.profile.update({
+      where: { userId },
+      data: {
+        displayName: 'Deleted User',
+        headline: null,
+        bio: null,
+        avatarUrl: null,
+        location: null,
+        githubUsername: null,
+        portfolioLinks: undefined,
+        isPublic: false,
+      },
+    }).catch(() => {});
+
+    this.logger.log(`Account deleted (soft): ${userId}`);
+    return { success: true, message: 'Account deleted. Data will be permanently removed in 30 days.' };
+  }
+
+  async exportData(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: { include: { skills: { include: { skill: true } } } },
+        conversations: {
+          include: {
+            conversation: {
+              include: {
+                messages: { orderBy: { createdAt: 'asc' } },
+                members: { include: { user: { select: { id: true, email: true } } } },
+              },
+            },
+          },
+        },
+        notifications: { orderBy: { createdAt: 'desc' }, take: 500 },
+        matchesAsUserOne: true,
+        matchesAsUserTwo: true,
+        connectionsAsA: true,
+        connectionsAsB: true,
+        sentInvitations: true,
+        receivedInvitations: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    const { passwordHash: _, emailVerificationToken: __, mfaSecret: ___, ...safe } = user;
+    return safe;
+  }
+
   async validateApiKey(key: string) {
     const keyHash = createHash('sha256').update(key).digest('hex');
     const apiKey = await this.prisma.apiKey.findUnique({ where: { keyHash } });
@@ -224,7 +297,7 @@ export class AuthService {
   }
 
   private sanitize(user: { passwordHash?: string | null; emailVerificationToken?: string | null; mfaSecret?: string | null; [key: string]: unknown }) {
-    const { passwordHash, emailVerificationToken, mfaSecret, ...rest } = user;
+    const { passwordHash: _passwordHash, emailVerificationToken: _emailVerificationToken, mfaSecret: _mfaSecret, ...rest } = user;
     return rest;
   }
 }

@@ -1,5 +1,4 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -24,42 +23,31 @@ export class ChatService {
       throw new ForbiddenException('Cannot start a conversation with yourself');
     }
 
-    const existing = await this.prisma.conversation.findFirst({
-      where: {
-        isGroup: false,
-        matchId: null,
-        projectId: null,
-        members: {
-          every: { userId: { in: [userId, targetUserId] } },
-        },
-      },
-      include: {
-        members: { include: { user: { include: { profile: true } } } },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
-      },
-    });
-
-    if (existing) return existing;
-
     return this.prisma.$transaction(async (tx) => {
-      const doubleCheck = await tx.conversation.findFirst({
+      const duplicates = await tx.conversation.findMany({
         where: {
           isGroup: false,
           matchId: null,
           projectId: null,
-          members: {
-            every: { userId: { in: [userId, targetUserId] } },
-          },
+          AND: [
+            { members: { some: { userId } } },
+            { members: { some: { userId: targetUserId } } },
+          ],
+        },
+        include: {
+          members: { include: { user: { include: { profile: true } } } },
+          messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
         },
       });
-      if (doubleCheck) {
-        return tx.conversation.findUnique({
-          where: { id: doubleCheck.id },
-          include: {
-            members: { include: { user: { include: { profile: true } } } },
-            messages: { orderBy: { createdAt: 'desc' }, take: 1, where: { deletedAt: null } },
-          },
-        });
+
+      if (duplicates.length > 0) {
+        const keep = duplicates[0];
+        for (const dup of duplicates.slice(1)) {
+          await tx.message.updateMany({ where: { conversationId: dup.id }, data: { conversationId: keep.id } });
+          await tx.conversationMember.deleteMany({ where: { conversationId: dup.id } });
+          await tx.conversation.delete({ where: { id: dup.id } });
+        }
+        return keep;
       }
 
       return tx.conversation.create({
@@ -108,6 +96,7 @@ export class ChatService {
         senderId,
         content,
         attachments: attachments ?? undefined,
+        status: 'SENT',
       },
       include: { sender: { include: { profile: { select: { displayName: true, avatarUrl: true } } } }, reactions: true },
     });
@@ -181,6 +170,66 @@ export class ChatService {
         members: { create: allIds.map((userId) => ({ userId })) },
       },
       include: { members: { include: { user: { include: { profile: true } } } } },
+    });
+  }
+
+  async addMembers(conversationId: string, requesterId: string, newMemberIds: string[]) {
+    await this.assertMember(conversationId, requesterId);
+    const existing = await this.prisma.conversationMember.findMany({
+      where: { conversationId, userId: { in: newMemberIds } },
+    });
+    const alreadyMembers = new Set(existing.map((m) => m.userId));
+    const toAdd = newMemberIds.filter((id) => !alreadyMembers.has(id));
+    if (toAdd.length === 0) {
+      return this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: { members: { include: { user: { include: { profile: true } } } } },
+      });
+    }
+    await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { isGroup: true },
+    });
+    await this.prisma.conversationMember.createMany({
+      data: toAdd.map((userId) => ({ conversationId, userId })),
+    });
+    return this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { members: { include: { user: { include: { profile: true } } } } },
+    });
+  }
+
+  async deleteConversation(conversationId: string, userId: string) {
+    await this.assertMember(conversationId, userId);
+    await this.prisma.message.deleteMany({ where: { conversationId } });
+    await this.prisma.conversationMember.deleteMany({ where: { conversationId } });
+    return this.prisma.conversation.delete({ where: { id: conversationId } });
+  }
+
+  async getConversationMembers(conversationId: string) {
+    return this.prisma.conversationMember.findMany({
+      where: { conversationId },
+      select: { userId: true },
+    });
+  }
+
+  async getUndeliveredMessages(userId: string) {
+    return this.prisma.message.findMany({
+      where: {
+        senderId: { not: userId },
+        status: 'SENT',
+        conversation: { members: { some: { userId } } },
+      },
+      orderBy: { createdAt: 'asc' },
+      include: { sender: { include: { profile: { select: { displayName: true, avatarUrl: true } } } }, reactions: true },
+      take: 100,
+    });
+  }
+
+  async markDelivered(messageId: string) {
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { status: 'DELIVERED', deliveredAt: new Date() },
     });
   }
 }

@@ -2,12 +2,16 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ChatService } from './chat.service';
-import { SendMessageDto, CreateConversationDto, CreateGroupDto, EditMessageDto, ReactionDto } from './dto/chat.dto';
+import { ChatGateway } from './chat.gateway';
+import { SendMessageDto, CreateConversationDto, CreateGroupDto, EditMessageDto, ReactionDto, AddMembersDto } from './dto/chat.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('chat')
 export class ChatController {
-  constructor(private chatService: ChatService) {}
+  constructor(
+    private chatService: ChatService,
+    private chatGateway: ChatGateway,
+  ) {}
 
   @Get('conversations')
   listConversations(@CurrentUser('id') userId: string) {
@@ -24,12 +28,21 @@ export class ChatController {
   }
 
   @Post('conversations/:id/messages')
-  sendMessage(
+  async sendMessage(
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
     @Body() dto: SendMessageDto,
   ) {
-    return this.chatService.sendMessage(id, userId, dto.content, dto.attachments);
+    const saved = await this.chatService.sendMessage(id, userId, dto.content, dto.attachments);
+    const payload = { ...saved };
+    this.chatGateway.emitToConversation(id, 'message:new', payload);
+    const members = await this.chatService.getConversationMembers(id);
+    for (const member of members) {
+      if (member.userId !== userId) {
+        this.chatGateway.emitToUser(member.userId, 'message:new', payload);
+      }
+    }
+    return saved;
   }
 
   @Post('conversations')
@@ -71,5 +84,26 @@ export class ChatController {
   @Patch('conversations/:id/read')
   markRead(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.chatService.markRead(id, userId);
+  }
+
+  @Post('conversations/:id/members')
+  async addMembers(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() dto: AddMembersDto,
+  ) {
+    const updated = await this.chatService.addMembers(id, userId, dto.memberIds);
+    if (updated) {
+      this.chatGateway.emitToConversation(id, 'conversation:members:updated', updated);
+      for (const member of updated.members) {
+        this.chatGateway.emitToUser(member.userId, 'conversation:members:updated', updated);
+      }
+    }
+    return updated;
+  }
+
+  @Delete('conversations/:id')
+  deleteConversation(@CurrentUser('id') userId: string, @Param('id') id: string) {
+    return this.chatService.deleteConversation(id, userId);
   }
 }

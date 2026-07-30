@@ -25,7 +25,7 @@ export class CollabService {
     if (!room || !room.isActive) throw new NotFoundException('Room not found or inactive');
 
     const existing = await this.prisma.collabRoomParticipant.findUnique({
-      where: { id: `${roomId}_${userId}` as unknown as string },
+      where: { roomId_userId: { roomId, userId } },
     });
 
     if (!existing) {

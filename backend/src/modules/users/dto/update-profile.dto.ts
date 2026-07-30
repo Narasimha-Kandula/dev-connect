@@ -25,4 +25,7 @@ export class UpdateProfileDto {
 
   @IsOptional() @IsObject()
   preferences?: Record<string, unknown>;
+
+  @IsOptional() @IsString()
+  avatarUrl?: string;
 }

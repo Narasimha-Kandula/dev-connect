@@ -10,8 +10,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { Logger, Injectable } from '@nestjs/common';
+import { Logger, Injectable, Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../common/redis/redis.module';
+import { checkWsRateLimit } from '../../common/guards/ws-rate-limiter';
 import { ChatService } from './chat.service';
 
 interface AuthedSocket extends Socket {
@@ -31,6 +34,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   constructor(
     private jwt: JwtService,
     private chatService: ChatService,
+    @Inject(REDIS_CLIENT) private redis: Redis | null,
   ) {}
 
   afterInit(server: Server) {
@@ -69,7 +73,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     // Broadcast user online status
     this.server.emit('user:online', { userId });
 
+    // Update presence in Redis
+    this.updateRedisPresence(userId, 'online').catch(() => {});
+
+    // Send current online users to the newly connected client
+    const onlineUserIds = Array.from(this.userSockets.keys()).filter((id) => id !== userId);
+    client.emit('presence:sync', { onlineUsers: onlineUserIds });
+
+    // Deliver any undelivered messages
+    this.deliverUndeliveredMessages(userId).catch((e) => {
+      this.logger.error(`Failed to deliver offline messages for ${userId}: ${(e as Error).message}`);
+    });
+
     this.logger.log(`Client connected: ${userId} (socket: ${client.id})`);
+  }
+
+  private async updateRedisPresence(userId: string, status: string) {
+    if (!this.redis) return;
+    const key = `presence:${userId}`;
+    await this.redis.set(key, status, 'EX', 60);
+  }
+
+  private async deliverUndeliveredMessages(userId: string) {
+    const undelivered = await this.chatService.getUndeliveredMessages(userId);
+    for (const msg of undelivered) {
+      this.server.to(`user:${userId}`).emit('message:new', msg);
+      await this.chatService.markDelivered(msg.id);
+    }
+    if (undelivered.length > 0) {
+      this.logger.log(`Delivered ${undelivered.length} offline messages to ${userId}`);
+    }
   }
 
   handleDisconnect(client: AuthedSocket) {
@@ -82,6 +115,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
           this.userSockets.delete(userId);
           // Broadcast user offline status
           this.server.emit('user:offline', { userId });
+          // Update presence in Redis with stale timeout
+          this.updateRedisPresence(userId, 'away').catch(() => {});
         }
       }
 
@@ -117,6 +152,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     return this.userSockets.has(userId);
   }
 
+  emitToUser(userId: string, event: string, data: unknown): void {
+    this.server.to(`user:${userId}`).emit(event, data);
+  }
+
+  emitToConversation(conversationId: string, event: string, data: unknown): void {
+    this.server.to(`conversation:${conversationId}`).emit(event, data);
+  }
+
   @SubscribeMessage('conversation:join')
   async onJoin(@ConnectedSocket() client: AuthedSocket, @MessageBody() conversationId: string) {
     const userId = client.data.userId;
@@ -144,34 +187,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   @SubscribeMessage('message:send')
   async onMessage(
     @ConnectedSocket() client: AuthedSocket,
-    @MessageBody() data: { conversationId: string; content: string; attachments?: { url: string; type: string; name: string }[] },
+    @MessageBody() data: { conversationId: string; content: string; tempId?: string; attachments?: { url: string; type: string; name: string }[] },
   ) {
     const userId = client.data.userId;
     if (!userId) return { error: 'Unauthorized' };
-    if (!data.content || data.content.length > 10000) return { error: 'Invalid content length' };
+    if ((!data.content || !data.content.trim()) && (!data.attachments || data.attachments.length === 0)) return { error: 'Message content or attachment required' };
+    if (data.content && data.content.length > 10000) return { error: 'Content too long' };
 
-    const tempId = randomUUID();
-    const optimisticMessage = {
-      id: tempId,
-      conversationId: data.conversationId,
-      senderId: userId,
-      content: data.content,
-      attachments: data.attachments ?? null,
-      createdAt: new Date().toISOString(),
-      sender: { profile: { displayName: '', avatarUrl: null } },
-      reactions: [],
-    };
-
-    client.to(`conversation:${data.conversationId}`).emit('message:new', optimisticMessage);
+    const rateCheck = await checkWsRateLimit(this.redis, userId, 'message:send');
+    if (!rateCheck.allowed) return { error: 'Rate limit exceeded. Please slow down.' };
 
     try {
       const saved = await this.chatService.sendMessage(data.conversationId, userId, data.content, data.attachments);
-      if (saved.id !== tempId) {
-        client.to(`conversation:${data.conversationId}`).emit('message:updated', saved);
+      const payload = { ...saved, tempId: data.tempId };
+      this.server.to(`conversation:${data.conversationId}`).emit('message:new', payload);
+      // Also emit to each member's user room for cross-page delivery
+      const members = await this.chatService.getConversationMembers(data.conversationId);
+      for (const member of members) {
+        if (member.userId !== userId) {
+          this.server.to(`user:${member.userId}`).emit('message:new', payload);
+        }
       }
       return saved;
     } catch (e) {
-      client.to(`conversation:${data.conversationId}`).emit('message:deleted', { messageId: tempId });
       return { error: (e as Error).message };
     }
   }
@@ -184,12 +222,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
     const userId = client.data.userId;
     if (!userId) return { error: 'Unauthorized' };
     if (!data.content || data.content.length > 10000) return { error: 'Invalid content length' };
+
+    const rateCheck = await checkWsRateLimit(this.redis, userId, 'message:edit');
+    if (!rateCheck.allowed) return { error: 'Rate limit exceeded' };
     const meta = await this.chatService.getMessageById(data.messageId);
     if (!meta) return { error: 'Message not found' };
     const isMember = await this.chatService.isMember(meta.conversationId, userId);
     if (!isMember) return { error: 'Not a member of this conversation' };
     const message = await this.chatService.editMessage(data.messageId, userId, data.content);
-    client.to(`conversation:${meta.conversationId}`).emit('message:updated', message);
+    this.server.to(`conversation:${meta.conversationId}`).emit('message:updated', message);
     return message;
   }
 
@@ -200,12 +241,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.userId;
     if (!userId) return { error: 'Unauthorized' };
+
+    const rateCheck = await checkWsRateLimit(this.redis, userId, 'message:delete');
+    if (!rateCheck.allowed) return { error: 'Rate limit exceeded' };
+
     const meta = await this.chatService.getMessageById(data.messageId);
     if (!meta) return { error: 'Message not found' };
     const isMember = await this.chatService.isMember(meta.conversationId, userId);
     if (!isMember) return { error: 'Not a member of this conversation' };
-    const message = await this.chatService.deleteMessage(data.messageId, userId);
-    client.to(`conversation:${meta.conversationId}`).emit('message:deleted', { messageId: data.messageId });
+    await this.chatService.deleteMessage(data.messageId, userId);
+    this.server.to(`conversation:${meta.conversationId}`).emit('message:deleted', { messageId: data.messageId });
     return { success: true };
   }
 
@@ -216,25 +261,41 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect, On
   ) {
     const userId = client.data.userId;
     if (!userId) return { error: 'Unauthorized' };
+
+    const rateCheck = await checkWsRateLimit(this.redis, userId, 'message:react');
+    if (!rateCheck.allowed) return { error: 'Rate limit exceeded' };
     const reaction = await this.chatService.addReaction(data.messageId, userId, data.emoji);
     const message = await this.chatService.getMessageById(data.messageId);
     if (message) {
-      client.to(`conversation:${message.conversationId}`).emit('message:reaction', { messageId: data.messageId, userId, emoji: data.emoji });
+      this.server.to(`conversation:${message.conversationId}`).emit('message:reaction', { messageId: data.messageId, userId, emoji: data.emoji });
     }
     return reaction;
   }
 
   @SubscribeMessage('typing')
-  onTyping(
+  async onTyping(
     @ConnectedSocket() client: AuthedSocket,
     @MessageBody() data: { conversationId: string; isTyping: boolean },
   ) {
     const userId = client.data.userId;
     if (!userId) return;
+
+    const rateCheck = await checkWsRateLimit(this.redis, userId, 'typing');
+    if (!rateCheck.allowed) return;
     client.to(`conversation:${data.conversationId}`).emit('typing', {
       userId,
       isTyping: data.isTyping,
     });
+  }
+
+  @SubscribeMessage('conversation:read')
+  async onRead(@ConnectedSocket() client: AuthedSocket, @MessageBody() conversationId: string) {
+    const userId = client.data.userId;
+    if (!userId) return { error: 'Unauthorized' };
+
+    await this.chatService.markRead(conversationId, userId);
+    client.to(`conversation:${conversationId}`).emit('message:read', { conversationId, userId });
+    return { success: true };
   }
 
   @SubscribeMessage('presence:check')

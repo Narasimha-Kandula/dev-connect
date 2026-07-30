@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
-import { Pencil, Github, Linkedin, Globe, Star, MessageCircle } from 'lucide-react';
+import { Avatar } from '@/lib/avatar';
+import { Pencil, Star, MessageCircle, Github, Linkedin, Globe } from 'lucide-react';
+import { ProfileSkeleton } from '@/components/skeletons';
 
 interface ProfileData {
   displayName: string;
@@ -26,82 +28,152 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const { token, user: authUser } = useAuthStore();
+  const { token } = useAuthStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(() => {
     if (!token) return;
-    api.get<{ profile: ProfileData } & Record<string, unknown>>('/users/me', token)
+    api.get<{ profile: ProfileData } | ProfileData>('/users/me', token)
       .then((d) => {
-        const p = 'profile' in d ? (d as { profile: ProfileData }).profile : (d as unknown as ProfileData);
-        setProfile(p as ProfileData);
+        const p = 'profile' in d ? (d as { profile: ProfileData }).profile : (d as ProfileData);
+        setProfile(p);
       })
       .catch(() => {});
   }, [token]);
 
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
   if (!profile) {
-    return <div className="mx-auto max-w-3xl px-6 py-10 text-center text-muted-foreground">Loading profile…</div>;
+    return <ProfileSkeleton />;
   }
 
+  const skills = profile.skills ?? [];
+  const hasLinks = profile.githubUrl || profile.linkedinUrl || profile.portfolioUrl;
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-6 py-10">
+    <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
+
+      {/* Page Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Developer Profile</h1>
-        <Link href="/profile/edit"><Button variant="secondary" size="sm"><Pencil size={14} className="mr-1" /> Edit Profile</Button></Link>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Developer Profile</h1>
+        <Link href="/profile/edit">
+          <Button className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm">
+            <Pencil size={14} className="mr-1.5" />
+            Edit Profile
+          </Button>
+        </Link>
       </div>
 
+      {/* User Overview Card */}
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-6 pt-6">
-          {profile.avatarUrl ? (
-            <img src={profile.avatarUrl} alt={profile.displayName} className="h-20 w-20 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-2xl font-bold text-primary">
-              {profile.displayName?.charAt(0) ?? '?'}
-            </div>
-          )}
-          <div className="flex-1">
-            <p className="text-xl font-semibold">{profile.displayName ?? 'Unnamed Developer'}</p>
-            <p className="text-sm text-muted-foreground">{profile.headline ?? 'No headline set'}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              {profile.location && <span>{profile.location}</span>}
-              {profile.experienceLevel && <span>{profile.experienceLevel}</span>}
-              <span className="flex items-center gap-1"><Star size={14} className="text-primary" /> {profile.reputationScore} pts</span>
-              {profile.availableForHire && (
-                <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">Available for hire</span>
-              )}
+        <CardContent className="flex items-center gap-5 pt-6 pb-6">
+          <Avatar src={profile.avatarUrl} name={profile.displayName} size="xl" border />
+          <div className="min-w-0">
+            <p className="text-lg font-semibold text-foreground truncate">
+              {profile.displayName ?? 'Unnamed Developer'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {profile.headline || profile.experienceLevel || 'Developer'}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span>{profile.location || 'Darsi, Ongole'}</span>
+              <span className="text-border/50">|</span>
+              <span className="flex items-center gap-1">
+                <Star size={14} className="text-primary" />
+                {profile.reputationScore} pts
+              </span>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* About Card */}
       <Card>
-        <CardHeader><CardTitle>About</CardTitle></CardHeader>
-        <CardContent><p className="text-sm text-muted-foreground leading-relaxed">{profile.bio || 'No bio yet — tell the community about yourself.'}</p></CardContent>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">About</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {profile.bio || 'No bio yet — tell the community about yourself.'}
+          </p>
+        </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Tech Stack + Links grid */}
+      <div className="grid gap-5 sm:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>Tech Stack</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold">Tech Stack</CardTitle>
+          </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            {profile.skills?.length ? profile.skills.map((s) => (
-              <span key={s.skill.id} className="rounded-full bg-muted px-3 py-1 text-xs font-medium">{s.skill.name}</span>
-            )) : <span className="text-sm text-muted-foreground">No technologies listed.</span>}
+            {skills.length > 0 ? (
+              skills.map((s) => (
+                <span
+                  key={s.skill.id}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-muted/70 px-3 py-1 text-xs font-medium text-foreground"
+                >
+                  {s.skill.name}
+                  <span className="flex gap-0.5" title={`Proficiency: ${s.proficiency}/5`}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className={`text-[10px] ${i < s.proficiency ? 'text-amber-500' : 'text-muted-foreground/30'}`}>★</span>
+                    ))}
+                  </span>
+                </span>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No technologies listed.</p>
+            )}
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader><CardTitle>Links</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-semibold">Links</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-2">
-            {profile.githubUrl && <a href={profile.githubUrl} target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><Github size={14} /> GitHub</a>}
-            {profile.linkedinUrl && <a href={profile.linkedinUrl} target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><Linkedin size={14} /> LinkedIn</a>}
-            {profile.portfolioUrl && <a href={profile.portfolioUrl} target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><Globe size={14} /> Portfolio</a>}
-            {!profile.githubUrl && !profile.linkedinUrl && !profile.portfolioUrl && <p className="text-sm text-muted-foreground">No links shared.</p>}
+            {profile.githubUrl && (
+              <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Github size={14} /> GitHub
+              </a>
+            )}
+            {profile.linkedinUrl && (
+              <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Linkedin size={14} /> LinkedIn
+              </a>
+            )}
+            {profile.portfolioUrl && (
+              <a href={profile.portfolioUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Globe size={14} /> Portfolio
+              </a>
+            )}
+            {!hasLinks && (
+              <p className="text-sm text-muted-foreground">No links shared.</p>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex gap-3">
-        <Button><MessageCircle size={14} className="mr-1" /> Message</Button>
-        <Link href="/skills"><Button variant="ghost">Skills</Button></Link>
+      {/* Bottom Action Tabs */}
+      <div className="flex items-center gap-3">
+        <Link href="/chat">
+          <Button className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm">
+            <MessageCircle size={15} className="mr-1.5" />
+            Messages
+          </Button>
+        </Link>
+        <Link href="/skills">
+          <Button variant="ghost" className="text-foreground">
+            Skills
+          </Button>
+        </Link>
+      </div>
+
+      {/* Bottom-left watermark */}
+      <div className="fixed bottom-4 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-full bg-foreground/10 text-xs font-bold text-foreground/30 select-none pointer-events-none">
+        N
       </div>
     </div>
   );

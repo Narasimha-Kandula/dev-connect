@@ -35,12 +35,22 @@ export interface User {
   profile?: UserProfile;
 }
 
+interface StoredAccount {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl?: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
 interface AuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
   initialized: boolean;
   error: string | null;
+  accounts: StoredAccount[];
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
@@ -50,6 +60,9 @@ interface AuthState {
   refresh: () => Promise<void>;
   initialize: () => Promise<void>;
   clearError: () => void;
+  addAccount: (email: string, password: string) => Promise<void>;
+  switchAccount: (accessToken: string) => Promise<void>;
+  removeAccount: (accountId: string) => void;
 }
 
 function clearAuthStorage() {
@@ -62,12 +75,24 @@ function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError || (err instanceof Error && err.message.includes('Failed to fetch'));
 }
 
+function loadAccounts(): StoredAccount[] {
+  try {
+    const raw = localStorage.getItem('devconnect_accounts');
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveAccounts(accounts: StoredAccount[]) {
+  localStorage.setItem('devconnect_accounts', JSON.stringify(accounts));
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   loading: true,
   initialized: false,
   error: null,
+  accounts: typeof window !== 'undefined' ? loadAccounts() : [],
 
   setUser: (user) => set({ user }),
 
@@ -100,7 +125,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       setCookie('accessToken', data.accessToken);
-      set({ user: data.user, token: data.accessToken, loading: false, initialized: true, error: null });
+      const accounts = loadAccounts();
+      const existingIdx = accounts.findIndex((a) => a.id === data.user.id);
+      const entry: StoredAccount = {
+        id: data.user.id,
+        email: data.user.email,
+        displayName: data.user.profile?.displayName || email.split('@')[0],
+        avatarUrl: data.user.profile?.avatarUrl,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      };
+      if (existingIdx >= 0) accounts[existingIdx] = entry;
+      else accounts.push(entry);
+      saveAccounts(accounts);
+      set({ user: data.user, token: data.accessToken, loading: false, initialized: true, error: null, accounts });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       set({ loading: false, error: message });
@@ -117,7 +155,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       setCookie('accessToken', data.accessToken);
-      set({ user: data.user, token: data.accessToken, loading: false, initialized: true, error: null });
+      const accounts = loadAccounts();
+      const entry: StoredAccount = {
+        id: data.user.id,
+        email: data.user.email,
+        displayName: data.user.profile?.displayName || name,
+        avatarUrl: data.user.profile?.avatarUrl,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+      };
+      accounts.push(entry);
+      saveAccounts(accounts);
+      set({ user: data.user, token: data.accessToken, loading: false, initialized: true, error: null, accounts });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed';
       set({ loading: false, error: message });
@@ -132,6 +181,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     clearAuthStorage();
     set({ user: null, token: null, loading: false, initialized: true, error: null });
+  },
+
+  addAccount: async (email, password) => {
+    const data = await api.post<{ user: User; accessToken: string; refreshToken: string }>(
+      '/auth/login', { email, password },
+    );
+    const accounts = loadAccounts();
+    const existingIdx = accounts.findIndex((a) => a.id === data.user.id);
+    const entry: StoredAccount = {
+      id: data.user.id,
+      email: data.user.email,
+      displayName: data.user.profile?.displayName || email.split('@')[0],
+      avatarUrl: data.user.profile?.avatarUrl,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    };
+    if (existingIdx >= 0) accounts[existingIdx] = entry;
+    else accounts.push(entry);
+    saveAccounts(accounts);
+    set({ accounts });
+  },
+
+  switchAccount: async (accessToken) => {
+    localStorage.setItem('accessToken', accessToken);
+    setCookie('accessToken', accessToken);
+    set({ token: accessToken, loading: true });
+    try {
+      const me = await api.get<User>('/users/me', accessToken);
+      set({ user: me, token: accessToken, loading: false, initialized: true, error: null });
+    } catch {
+      set({ loading: false });
+    }
+  },
+
+  removeAccount: (accountId) => {
+    const accounts = loadAccounts().filter((a) => a.id !== accountId);
+    saveAccounts(accounts);
+    set({ accounts });
   },
 
   refresh: async () => {
@@ -192,5 +279,8 @@ if (typeof window !== 'undefined') {
         state.initialize();
       }
     }
+  });
+  window.addEventListener('auth:logout', () => {
+    useAuthStore.getState().logout();
   });
 }

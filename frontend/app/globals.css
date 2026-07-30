@@ -3,61 +3,69 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --color-background: #fcf7ff;
-  --color-foreground: #1f1926;
+  --color-background: #f7f5fa;
+  --color-foreground: #1a1625;
 
-  --color-card: #fcf7ff;
-  --color-card-foreground: #1f1926;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1625;
 
-  --color-muted: #9b89b3;
-  --color-muted-foreground: #5927e5;
+  --color-muted: #7a7191;
+  --color-muted-foreground: #6b6282;
 
-  --color-border: #9b89b3;
-  --color-input: #9b89b3;
+  --color-border: #e2dcec;
+  --color-input: #e2dcec;
   --color-ring: #5927e5;
 
   --color-primary: #5927e5;
-  --color-primary-foreground: #fcf7ff;
+  --color-primary-foreground: #ffffff;
   --color-primary-hover: #4a1fb8;
 
-  --color-accent: #9b89b3;
-  --color-accent-foreground: #fcf7ff;
+  --color-accent: #d4a04a;
+  --color-accent-foreground: #1a1625;
 
-  --color-success: #5927e5;
-  --color-warning: #9b89b3;
-  --color-danger: #1f1926;
+  --color-success: #2d8a4e;
+  --color-warning: #b8860b;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #c93a3a;
 
   --color-match: #5927e5;
+
+  --gradient-start: #5927e5;
+  --gradient-end: #7c4dff;
 
   --radius: 0.75rem;
 }
 
 .dark {
-  --color-background: #1f1926;
-  --color-foreground: #fcf7ff;
+  --color-background: #181622;
+  --color-foreground: #ede8f5;
 
-  --color-card: #1f1926;
-  --color-card-foreground: #fcf7ff;
+  --color-card: #221f2e;
+  --color-card-foreground: #ede8f5;
 
-  --color-muted: #9b89b3;
-  --color-muted-foreground: #9b89b3;
+  --color-muted: #9e95b5;
+  --color-muted-foreground: #9e95b5;
 
-  --color-border: #9b89b3;
-  --color-input: #9b89b3;
-  --color-ring: #5927e5;
+  --color-border: #2f2a3d;
+  --color-input: #2f2a3d;
+  --color-ring: #7c4dff;
 
-  --color-primary: #5927e5;
-  --color-primary-foreground: #fcf7ff;
-  --color-primary-hover: #7a4ff0;
+  --color-primary: #7c4dff;
+  --color-primary-foreground: #ffffff;
+  --color-primary-hover: #9b6fff;
 
-  --color-accent: #9b89b3;
-  --color-accent-foreground: #fcf7ff;
+  --color-accent: #e8b84a;
+  --color-accent-foreground: #1a1625;
 
-  --color-success: #5927e5;
-  --color-warning: #9b89b3;
-  --color-danger: #fcf7ff;
+  --color-success: #3dae64;
+  --color-warning: #d4a04a;
+  --color-warning-foreground: #1a1625;
+  --color-danger: #e55555;
 
-  --color-match: #5927e5;
+  --color-match: #7c4dff;
+
+  --gradient-start: #7c4dff;
+  --gradient-end: #9b6fff;
 }
 
 @theme inline {
@@ -77,10 +85,11 @@
   --color-accent-foreground: var(--color-accent-foreground);
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
+  --color-warning-foreground: var(--color-warning-foreground);
   --color-danger: var(--color-danger);
   --color-match: var(--color-match);
   --radius-lg: var(--radius);
-  --font-sans: var(--font-sans);
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
@@ -91,8 +100,15 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
 }
 
 .gradient-brand {
-  background-image: linear-gradient(135deg, var(--color-primary), var(--color-match));
+  background-image: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
 }

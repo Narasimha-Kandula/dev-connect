@@ -3,8 +3,8 @@ import type { NextRequest } from 'next/server';
 
 const publicRoutes = new Set([
   '/', '/login', '/signup', '/forgot-password', '/reset-password',
-  '/features', '/how-it-works', '/about', '/faq', '/testimonials',
-  '/contact', '/demo', '/privacy', '/terms', '/cookies', '/security',
+  '/features', '/how-it-works', '/about', '/faq',
+  '/contact', '/safety', '/privacy', '/terms', '/security',
   '/auth/callback', '/auth/google/callback',
 ]);
 

@@ -18,28 +18,32 @@ function GoogleCallbackInner() {
     sessionStorage.removeItem('oauth_state');
 
     if (!code) {
-      setMsg('Invalid response from Google.');
+      router.push('/login?error=invalid_oauth_response');
       return;
     }
 
     if (state && savedState && state !== savedState) {
-      setMsg('OAuth state mismatch — possible CSRF attack. Please try again.');
+      router.push('/login?error=csrf_mismatch');
       return;
     }
 
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
     api
       .post<{ accessToken: string; refreshToken: string }>('/auth/oauth', {
         provider: 'google',
         code,
+        redirectUri,
       })
       .then((data) => {
         setTokens(data.accessToken, data.refreshToken);
         useAuthStore.getState().initialize();
         router.push('/dashboard');
       })
-      .catch(() => {
-        setMsg('Google authentication failed. Please try again.');
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? encodeURIComponent(err.message) : 'Google+authentication+failed';
+        router.push(`/login?error=oauth_failed&detail=${msg}`);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

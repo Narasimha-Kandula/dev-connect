@@ -55,7 +55,10 @@ const LABELS: Record<string, string> = {
   onboarding: 'Onboarding',
 };
 
-function labelFor(segment: string): string {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function labelFor(segment: string): string | null {
+  if (UUID_RE.test(segment)) return null;
   if (LABELS[segment]) return LABELS[segment];
   return segment
     .replace(/[-_]/g, ' ')
@@ -68,11 +71,14 @@ export default function Breadcrumbs() {
 
   if (segments.length === 0) return null;
 
-  const crumbs = segments.map((seg, i) => ({
-    label: labelFor(seg),
-    href: '/' + segments.slice(0, i + 1).join('/'),
-    isLast: i === segments.length - 1,
-  }));
+  type Crumb = { label: string; href: string; isLast: boolean };
+  const crumbs: Crumb[] = segments
+    .map((seg, i) => {
+      const label = labelFor(seg);
+      if (label === null) return null;
+      return { label, href: '/' + segments.slice(0, i + 1).join('/'), isLast: i === segments.length - 1 };
+    })
+    .filter((c): c is Crumb => c !== null);
 
   return (
     <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">

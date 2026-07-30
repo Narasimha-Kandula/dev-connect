@@ -123,7 +123,7 @@ async function request<T>(
       processQueue(err, null);
       clearAuth();
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.dispatchEvent(new CustomEvent('auth:logout'));
       }
       throw err;
     } finally {

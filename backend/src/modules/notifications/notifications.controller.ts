@@ -24,6 +24,11 @@ export class NotificationsController {
     return this.notificationsService.markAllRead(userId);
   }
 
+  @Get('unread')
+  unreadCount(@CurrentUser('id') userId: string) {
+    return this.notificationsService.unreadCount(userId);
+  }
+
   @Get('preferences')
   getPreferences(@CurrentUser('id') userId: string) {
     return this.notificationsService.getPreferences(userId);

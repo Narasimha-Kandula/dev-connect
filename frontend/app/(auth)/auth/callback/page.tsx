@@ -12,35 +12,40 @@ function CallbackInner() {
   const [msg, setMsg] = useState('Completing authentication…');
 
   useEffect(() => {
-    const provider = searchParams.get('provider');
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const savedState = sessionStorage.getItem('oauth_state');
     sessionStorage.removeItem('oauth_state');
 
-    if (!provider || !code) {
-      setMsg('Invalid OAuth response — missing provider or code.');
+    if (!code) {
+      router.push('/login?error=invalid_oauth_response');
       return;
     }
+
+    const provider = searchParams.get('provider') || 'github';
 
     if (state && savedState && state !== savedState) {
-      setMsg('OAuth state mismatch — possible CSRF attack. Please try again.');
+      router.push('/login?error=csrf_mismatch');
       return;
     }
 
+    const redirectUri = `${window.location.origin}/auth/callback`;
     api
       .post<{ accessToken: string; refreshToken: string }>('/auth/oauth', {
         provider,
         code,
+        redirectUri,
       })
       .then((data) => {
         setTokens(data.accessToken, data.refreshToken);
         useAuthStore.getState().initialize();
         router.push('/dashboard');
       })
-      .catch(() => {
-        setMsg('Authentication failed. Please try logging in again.');
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? encodeURIComponent(err.message) : 'OAuth+authentication+failed';
+        router.push(`/login?error=oauth_failed&detail=${msg}`);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

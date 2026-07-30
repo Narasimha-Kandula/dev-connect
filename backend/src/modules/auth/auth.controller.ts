@@ -1,5 +1,5 @@
-import { Body, Controller, Post, Get, Delete, HttpCode, HttpStatus, UseGuards, Param, Patch } from '@nestjs/common';
-import { IsIn, IsString } from 'class-validator';
+import { Body, Controller, Post, Get, Delete, HttpCode, HttpStatus, UseGuards, Param, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { OAuthService } from './oauth.service';
 import { MfaService } from './mfa.service';
@@ -9,19 +9,13 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/reset-password.dto';
-import { SetupMfaDto, EnableMfaDto } from './dto/mfa.dto';
+import { EnableMfaDto } from './dto/mfa.dto';
 import { CreateApiKeyDto } from './dto/api-key.dto';
 import { OAuthDto } from './dto/oauth.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-
-class RefreshTokenDto {
-  @IsString() refreshToken!: string;
-}
-
-class VerifyEmailDto {
-  @IsString() token!: string;
-}
 
 @Controller('auth')
 export class AuthController {
@@ -58,14 +52,10 @@ export class AuthController {
 
   @Post('oauth')
   @HttpCode(HttpStatus.OK)
-  oauth(@Body() dto: OAuthDto) {
-    return this.oauthService.authenticate(dto.code, dto.provider);
-  }
-
-  @Post('oauth/callback')
-  @HttpCode(HttpStatus.OK)
-  oauthCallback(@Body() dto: OAuthDto) {
-    return this.oauthService.authenticate(dto.code, dto.provider);
+  oauth(@Body() dto: OAuthDto, @Req() req: Request) {
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip;
+    const userAgent = req.headers['user-agent'];
+    return this.oauthService.authenticate(dto.code, dto.provider, dto.redirectUri, userAgent, ipAddress);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -128,6 +118,22 @@ export class AuthController {
   @Post('mfa/disable')
   disableMfa(@CurrentUser('id') userId: string) {
     return this.mfaService.disable(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('account')
+  @HttpCode(HttpStatus.OK)
+  deleteAccount(
+    @CurrentUser('id') userId: string,
+    @Body() body?: { password?: string },
+  ) {
+    return this.authService.deleteAccount(userId, body?.password);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('export')
+  exportData(@CurrentUser('id') userId: string) {
+    return this.authService.exportData(userId);
   }
 
   @UseGuards(JwtAuthGuard)

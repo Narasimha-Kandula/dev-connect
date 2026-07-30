@@ -14,15 +14,23 @@ export class DiscoveryController {
     @Query('skill') skill?: string,
     @Query('location') location?: string,
     @Query('experienceLevel') experienceLevel?: string,
+    @Query('sort') sort?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Query('hideSelf') hideSelf?: string,
+    @Query('remote') remote?: string,
+    @Query('available') available?: string,
   ) {
     return this.discoveryService.getFeed(userId, {
       skill,
       location,
       experienceLevel,
+      sort,
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
+      hideSelf,
+      remote,
+      available,
     });
   }
 }

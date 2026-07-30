@@ -8,8 +8,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
-  secondary: 'bg-muted text-foreground hover:opacity-80',
-  ghost: 'bg-transparent text-foreground hover:bg-muted',
+  secondary: 'bg-muted text-foreground hover:opacity-80 dark:bg-[#3a3550] dark:hover:bg-[#4a4560]',
+  ghost: 'bg-transparent text-foreground hover:bg-muted/30',
   danger: 'bg-danger text-white hover:opacity-90',
 };
 
@@ -24,7 +24,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],
         className,

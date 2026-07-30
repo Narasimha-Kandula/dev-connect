@@ -22,6 +22,17 @@ export class MatchingController {
     return this.matchingService.swipe(userId, dto.targetId, dto.action);
   }
 
+  @Get('match/recommendations')
+  getRecommendations(
+    @CurrentUser('id') userId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.matchingService.getRecommendations(
+      userId,
+      limit ? Math.min(parseInt(limit, 10), 50) : 20,
+    );
+  }
+
   @Get('matches')
   matches(
     @CurrentUser('id') userId: string,
@@ -53,5 +64,19 @@ export class MatchingController {
   @Post('matches/:id/connect')
   createConnection(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.matchingService.createConnection(id, userId);
+  }
+
+  @Post('discover/undo')
+  undoSwipe(@CurrentUser('id') userId: string) {
+    return this.matchingService.undoSwipe(userId);
+  }
+
+  @Post('matches/:id/start-project')
+  startProject(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body('title') title: string,
+  ) {
+    return this.matchingService.startProject(id, userId, title);
   }
 }

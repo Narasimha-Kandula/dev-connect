@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { expandSkillNames } from '../../common/utils/skill-expansion';
 
 @Injectable()
 export class RecommendationsService {
@@ -25,12 +26,12 @@ export class RecommendationsService {
     });
     if (!profile) return null;
 
-    const skillNames = profile.skills.map((s) => s.skill.name);
+    const skillNames = expandSkillNames(profile.skills.map((s) => s.skill.name));
     const projectCount = profile.user.projectsOwned.length;
 
     const recommendedSkills = this.getRecommendedSkills(skillNames);
     const suggestedRoles = this.getSuggestedRoles(skillNames);
-    const matchSuggestions = await this.getMatchSuggestions(userId, skillNames);
+    const matchSuggestions = skillNames.length > 0 ? await this.getMatchSuggestions(userId, skillNames) : [];
 
     return {
       profileStrength: Math.min(profile.skills.length * 15 + projectCount * 10 + profile.reputationScore, 100),
@@ -82,14 +83,16 @@ export class RecommendationsService {
       where: { userId },
       include: { skills: { include: { skill: true } } },
     });
-    if (!profile) return [];
+    if (!profile || profile.skills.length === 0) return [];
 
-    const mySkillNames = profile.skills.map((s) => s.skill.name);
+    const mySkillNames = expandSkillNames(profile.skills.map((s) => s.skill.name)).slice(0, 5);
 
     const projects = await this.prisma.project.findMany({
       where: {
         status: { in: ['OPEN', 'IN_PROGRESS'] },
-        OR: mySkillNames.map((name) => ({ requiredSkills: { array_contains: name } as never })),
+        OR: mySkillNames.length > 0
+          ? mySkillNames.map((name) => ({ requiredSkills: { array_contains: name } as never }))
+          : undefined,
       },
       include: { owner: { include: { profile: true } }, _count: { select: { members: true } } },
       take: limit,
@@ -131,11 +134,12 @@ export class RecommendationsService {
   }
 
   private async getMatchSuggestions(userId: string, mySkills: string[]) {
-    const matches = await this.prisma.profile.findMany({
+      const expandedSkills = expandSkillNames(mySkills);
+      const matches = await this.prisma.profile.findMany({
       where: {
         isPublic: true,
         userId: { not: userId },
-        skills: { some: { skill: { name: { in: mySkills } } } },
+        skills: { some: { skill: { name: { in: expandedSkills } } } },
       },
       include: { skills: { include: { skill: true } } },
       take: 5,

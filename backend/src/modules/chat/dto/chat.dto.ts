@@ -48,3 +48,9 @@ export class ReactionDto {
   @IsString()
   emoji!: string;
 }
+
+export class AddMembersDto {
+  @IsArray()
+  @IsUUID('4', { each: true })
+  memberIds!: string[];
+}

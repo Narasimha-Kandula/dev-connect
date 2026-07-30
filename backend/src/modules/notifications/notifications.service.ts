@@ -1,7 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NotificationType, NotificationChannel } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ChatGateway } from '../chat/chat.gateway';
+import { PushService } from './push.service';
 
 @Injectable()
 export class NotificationsService {
@@ -10,6 +12,9 @@ export class NotificationsService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private pushService: PushService,
+    @Inject(forwardRef(() => ChatGateway))
+    private chatGateway: ChatGateway,
   ) {}
 
   async create(userId: string, type: NotificationType, title: string, body?: string, metadata?: object) {
@@ -27,6 +32,21 @@ export class NotificationsService {
     });
     if (!emailPref || emailPref.enabled) {
       this.sendEmailSafe(userId, type, title, body).catch(() => {});
+    }
+
+    this.chatGateway.emitToUser(userId, 'notification:new', notification);
+
+    const isOnline = this.chatGateway.isUserOnline(userId);
+    const pushPref = await this.prisma.notificationPreference.findUnique({
+      where: { userId_channel_type: { userId, channel: 'PUSH', type } },
+    });
+
+    if ((!isOnline || (pushPref && pushPref.enabled)) && (!pushPref || pushPref.enabled)) {
+      this.pushService.sendToUser(userId, {
+        title,
+        body: body ?? title,
+        data: metadata as Record<string, unknown>,
+      }).catch((e) => this.logger.error(`Push notification failed: ${(e as Error).message}`));
     }
 
     return notification;
@@ -52,6 +72,12 @@ export class NotificationsService {
     return this.prisma.notification.updateMany({
       where: { userId, isRead: false },
       data: { isRead: true },
+    });
+  }
+
+  unreadCount(userId: string) {
+    return this.prisma.notification.count({
+      where: { userId, isRead: false },
     });
   }
 

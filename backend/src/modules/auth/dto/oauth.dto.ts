@@ -11,4 +11,8 @@ export class OAuthDto {
   @IsOptional()
   @IsString()
   state?: string;
+
+  @IsOptional()
+  @IsString()
+  redirectUri?: string;
 }

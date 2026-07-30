@@ -97,6 +97,8 @@ model User {
   isSuspended       Boolean   @default(false) @map("is_suspended")
   isBanned          Boolean   @default(false) @map("is_banned")
   lastLoginAt       DateTime? @map("last_login_at")
+  deletedAt         DateTime? @map("deleted_at")
+  scheduledDeleteAt DateTime? @map("scheduled_delete_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
@@ -136,6 +138,19 @@ model User {
   blockedUsers      BlockedUser[]    @relation("BlockerUser")
   blockedByUsers    BlockedUser[]    @relation("BlockedUserRel")
 
+  swipeLimits       SwipeLimit[]
+  fraudFlag         FraudFlag?
+
+  savedProfiles     SavedProfile[]  @relation("SavedByUser")
+  savedByUsers      SavedProfile[]  @relation("SavedUser")
+
+  reviewsGiven      Review[]        @relation("Reviewer")
+  reviewsReceived   Review[]        @relation("ReviewTarget")
+  contributions     Contribution[]
+
+  collabPairsAsA    CollaborationPair[] @relation("CollabUserA")
+  collabPairsAsB    CollaborationPair[] @relation("CollabUserB")
+
   @@map("users")
 }
 
@@ -149,6 +164,7 @@ model PasswordResetToken {
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("password_reset_tokens")
 }
 
@@ -166,15 +182,21 @@ model NotificationPreference {
 }
 
 model UserDevice {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  pushToken String?  @map("push_token")
-  platform  String?  // ios | android | web
-  userAgent String?  @map("user_agent")
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  deviceToken    String    @map("device_token")
+  platform       String    // ios | android | web
+  deviceName     String?   @map("device_name")
+  userAgent      String?   @map("user_agent")
+  isActive       Boolean   @default(true) @map("is_active")
+  lastActiveAt   DateTime? @map("last_active_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, deviceToken, platform])
+  @@index([userId])
+  @@index([deviceToken])
   @@map("user_devices")
 }
 
@@ -358,6 +380,8 @@ model Invitation {
   receiver    User              @relation("InvitationReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   project     Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([senderId, status])
+  @@index([receiverId, status])
   @@map("invitations")
 }
 
@@ -417,6 +441,8 @@ model Message {
   senderId       String       @map("sender_id")
   content        String?
   attachments    Json?        // [{url, type, name}]
+  status         String       @default("SENT") // SENT | DELIVERED | READ
+  deliveredAt    DateTime?    @map("delivered_at")
   editedAt       DateTime?    @map("edited_at")
   deletedAt      DateTime?    @map("deleted_at")
   createdAt      DateTime     @default(now()) @map("created_at")
@@ -426,6 +452,7 @@ model Message {
   reactions      MessageReaction[]
 
   @@index([conversationId, createdAt])
+  @@index([senderId, status])
   @@map("messages")
 }
 
@@ -439,6 +466,7 @@ model MessageReaction {
   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
+  @@index([messageId])
   @@map("message_reactions")
 }
 
@@ -463,6 +491,7 @@ model Project {
   invitations    Invitation[]
   conversations  Conversation[]
   files          SharedFile[]
+  contributions  Contribution[]
 
   @@index([ownerId])
   @@index([status])
@@ -480,6 +509,7 @@ model Milestone {
 
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@index([projectId])
   @@map("milestones")
 }
 
@@ -544,6 +574,8 @@ model CollabRoom {
   participants CollabRoomParticipant[]
   recordings   CollabRoomRecording[]
 
+  @@index([projectId])
+  @@index([matchId])
   @@map("collab_rooms")
 }
 
@@ -558,6 +590,7 @@ model CollabRoomParticipant {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
+  @@index([roomId, leftAt])
   @@map("collab_room_participants")
 }
 
@@ -571,6 +604,44 @@ model CollabRoomRecording {
   room      CollabRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@map("collab_room_recordings")
+}
+
+// ─── Swipe Limits (Feature Gating) ──────────────────────────
+
+model SwipeLimit {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  date       DateTime @map("date") // normalized to start of day
+  swipeCount Int      @default(0) @map("swipe_count")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("swipe_limits")
+}
+
+// ─── Fraud Detection ─────────────────────────────────────────
+
+model FraudFlag {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  riskScore Int      @default(0) @map("risk_score")
+  signals   Json?    // { rapidSwiping: bool, highRequestRate: bool, lowProfileCompletion: bool, duplicateIp: bool, duplicateDevice: bool }
+  flags     Json?    // ["flagged_for_review", "temp_restricted", "captcha_triggered", "soft_banned", "hard_banned"]
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@unique([userId])
+  @@index([userId])
+  @@index([riskScore])
+  @@index([isActive])
+  @@map("fraud_flags")
 }
 
 // ─── Notifications ──────────────────────────────────────────
@@ -592,6 +663,81 @@ model Notification {
   @@map("notifications")
 }
 
+// ─── Saved Profiles / Bookmarks ─────────────────────────────
+
+model SavedProfile {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  savedUserId String  @map("saved_user_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation("SavedByUser", fields: [userId], references: [id], onDelete: Cascade)
+  savedUser  User     @relation("SavedUser", fields: [savedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, savedUserId])
+  @@index([userId])
+  @@index([savedUserId])
+  @@map("saved_profiles")
+}
+
+// ─── Reviews & Reputation ────────────────────────────────────
+
+model Review {
+  id          String   @id @default(uuid())
+  reviewerId  String   @map("reviewer_id")
+  targetId    String   @map("target_id")
+  projectId   String?  @map("project_id")
+  rating      Int      // 1-5
+  comment     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  reviewer    User     @relation("Reviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  target      User     @relation("ReviewTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewerId, targetId, projectId])
+  @@index([targetId])
+  @@map("reviews")
+}
+
+model Contribution {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  projectId   String   @map("project_id")
+  description String?
+  linesOfCode Int      @default(0) @map("lines_of_code")
+  commits     Int      @default(0)
+  tasksDone   Int      @default(0) @map("tasks_done")
+  impactScore Float    @default(0) @map("impact_score")
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@map("contributions")
+}
+
+model CollaborationPair {
+  id              String   @id @default(uuid())
+  userAId         String   @map("user_a_id")
+  userBId         String   @map("user_b_id")
+  projectsCount   Int      @default(0) @map("projects_count")
+  averageScore    Float    @default(0) @map("average_score")
+  lastCollaborated DateTime? @map("last_collaborated")
+  compatibilityTags Json?  @map("compatibility_tags")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  userA           User     @relation("CollabUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB           User     @relation("CollabUserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@map("collaboration_pairs")
+}
+
 // ─── Moderation / Admin / Audit ─────────────────────────────
 
 model Report {
@@ -605,6 +751,7 @@ model Report {
 
   reporter     User     @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
 
+  @@index([status, createdAt])
   @@map("reports")
 }
 
@@ -619,6 +766,7 @@ model ModerationAction {
 
   moderator    User     @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
 
+  @@index([targetType, targetId])
   @@map("moderation_actions")
 }
 
@@ -634,5 +782,7 @@ model AuditLog {
 
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
+  @@index([createdAt])
   @@map("audit_logs")
 }

@@ -1,13 +1,18 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SearchService } from '../search/search.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { expandSkillNames } from '../../common/utils/skill-expansion';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private searchService: SearchService,
+  ) {}
 
   async getPublicProfile(userId: string) {
     const profile = await this.prisma.profile.findUnique({
@@ -31,7 +36,7 @@ export class UsersService {
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    const { passwordHash, emailVerificationToken, mfaSecret, ...rest } = user;
+    const { passwordHash: _passwordHash, emailVerificationToken: _emailVerificationToken, mfaSecret: _mfaSecret, ...rest } = user;
     return rest;
   }
 
@@ -45,6 +50,7 @@ export class UsersService {
     if (dto.portfolioLinks !== undefined) updateData.portfolioLinks = dto.portfolioLinks;
     if (dto.availability !== undefined) updateData.availability = dto.availability;
     if (dto.preferences !== undefined) updateData.preferences = dto.preferences as Prisma.InputJsonValue;
+    if (dto.avatarUrl !== undefined) updateData.avatarUrl = dto.avatarUrl;
 
     const profile = await this.prisma.profile.upsert({
       where: { userId },
@@ -62,6 +68,7 @@ export class UsersService {
     }) as unknown as Prisma.ProfileGetPayload<{ include: { skills: { include: { skill: true } } } }>;
 
     await this.recalculateReputation(userId);
+    this.searchService.indexUser(userId).catch(() => {});
     return updated;
   }
 
@@ -70,8 +77,18 @@ export class UsersService {
 
     await this.prisma.profileSkill.deleteMany({ where: { profileId: profile.id } });
 
-    const skillIds: string[] = [];
+    const expanded: { name: string; proficiency?: number }[] = [];
     for (const s of skillNames) {
+      const names = expandSkillNames([s.name]);
+      for (const name of names) {
+        if (!expanded.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
+          expanded.push({ name, proficiency: s.proficiency });
+        }
+      }
+    }
+
+    const skillIds: string[] = [];
+    for (const s of expanded) {
       const skill = await this.prisma.skill.upsert({
         where: { name: s.name },
         update: {},
@@ -91,7 +108,7 @@ export class UsersService {
       });
     }
 
-    const skillCount = skillNames.length;
+    const skillCount = expanded.length;
     const completeness = this.calculateCompleteness(
       await this.prisma.profile.findUniqueOrThrow({ where: { userId } }),
       skillCount,
@@ -123,37 +140,17 @@ export class UsersService {
     return endorsement;
   }
 
-  async searchProfiles(query: string, limit = 20, offset = 0, cursor?: string) {
-    const take = Math.min(limit, 50);
-
-    if (!query || query.length < 2) {
-      return this.prisma.profile.findMany({
-        where: { isPublic: true },
-        include: { skills: { include: { skill: true } }, user: { select: { id: true } } },
-        take,
-        skip: cursor ? 1 : undefined,
-        ...(cursor ? { cursor: { id: cursor } } : {}),
-        orderBy: { reputationScore: 'desc' },
-      });
-    }
-
-    return this.prisma.profile.findMany({
-      where: {
-        isPublic: true,
-        OR: [
-          { displayName: { contains: query, mode: 'insensitive' } },
-          { headline: { contains: query, mode: 'insensitive' } },
-          { bio: { contains: query, mode: 'insensitive' } },
-          { location: { contains: query, mode: 'insensitive' } },
-          { skills: { some: { skill: { name: { contains: query, mode: 'insensitive' } } } } },
-        ],
-      },
-      include: { skills: { include: { skill: true } }, user: { select: { id: true } } },
-      take,
-      skip: cursor ? 1 : offset,
-      ...(cursor ? { cursor: { id: cursor } } : {}),
-      orderBy: { reputationScore: 'desc' },
+  async searchProfiles(query: string, limit = 20, offset = 0, cursor?: string, sort?: string) {
+    const result = await this.searchService.search(query, {
+      limit: Math.min(limit, 50),
+      offset,
+      sort,
     });
+
+    return {
+      hits: result.hits,
+      total: result.total,
+    };
   }
 
   async syncGitHub(userId: string, username: string) {
@@ -192,6 +189,16 @@ export class UsersService {
     }
   }
 
+  async uploadAvatar(userId: string, filename: string): Promise<{ avatarUrl: string }> {
+    const avatarUrl = `/uploads/${filename}`;
+    await this.prisma.profile.upsert({
+      where: { userId },
+      update: { avatarUrl },
+      create: { userId, displayName: 'Developer', avatarUrl },
+    });
+    return { avatarUrl };
+  }
+
   private async recalculateReputation(userId: string) {
     const profile = await this.prisma.profile.findUnique({
       where: { userId },
@@ -208,6 +215,64 @@ export class UsersService {
     await this.prisma.profile.update({
       where: { userId },
       data: { reputationScore: score },
+    });
+  }
+
+  async blockUser(userId: string, targetId: string) {
+    if (userId === targetId) throw new ConflictException('You cannot block yourself');
+    const existing = await this.prisma.blockedUser.findUnique({
+      where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } },
+    });
+    if (existing) throw new ConflictException('User is already blocked');
+    return this.prisma.blockedUser.create({
+      data: { blockerId: userId, blockedId: targetId },
+    });
+  }
+
+  async unblockUser(userId: string, targetId: string) {
+    const existing = await this.prisma.blockedUser.findUnique({
+      where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } },
+    });
+    if (!existing) throw new NotFoundException('Block not found');
+    return this.prisma.blockedUser.delete({
+      where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } },
+    });
+  }
+
+  async getBlockedUsers(userId: string) {
+    return this.prisma.blockedUser.findMany({
+      where: { blockerId: userId },
+      include: { blocked: { include: { profile: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async saveProfile(userId: string, targetId: string) {
+    if (userId === targetId) throw new ConflictException('You cannot save your own profile');
+    const existing = await this.prisma.savedProfile.findUnique({
+      where: { userId_savedUserId: { userId, savedUserId: targetId } },
+    });
+    if (existing) return existing;
+    return this.prisma.savedProfile.create({
+      data: { userId, savedUserId: targetId },
+    });
+  }
+
+  async unsaveProfile(userId: string, targetId: string) {
+    const existing = await this.prisma.savedProfile.findUnique({
+      where: { userId_savedUserId: { userId, savedUserId: targetId } },
+    });
+    if (!existing) throw new NotFoundException('Saved profile not found');
+    return this.prisma.savedProfile.delete({
+      where: { userId_savedUserId: { userId, savedUserId: targetId } },
+    });
+  }
+
+  async getSavedProfiles(userId: string) {
+    return this.prisma.savedProfile.findMany({
+      where: { userId },
+      include: { savedUser: { include: { profile: { include: { skills: { include: { skill: true } } } } } } },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
