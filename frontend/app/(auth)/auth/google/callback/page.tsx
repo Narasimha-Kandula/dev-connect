@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
@@ -9,9 +9,13 @@ function GoogleCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setTokens = useAuthStore((s) => s.setTokens);
+  const postedRef = useRef(false);
   const [msg, setMsg] = useState('Completing Google authentication…');
 
   useEffect(() => {
+    if (postedRef.current) return;
+    postedRef.current = true;
+
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const savedState = sessionStorage.getItem('oauth_state');

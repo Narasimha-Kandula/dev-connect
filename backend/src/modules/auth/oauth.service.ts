@@ -1,7 +1,8 @@
-import { Injectable, UnauthorizedException, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 interface OAuthProfile {
@@ -51,38 +52,66 @@ export class OAuthService {
 
       if (matchedUser) {
         this.logger.log(`Linking OAuth account to existing user ${matchedUser.id}`);
-        await this.prisma.oAuthAccount.create({
-          data: {
-            userId: matchedUser.id,
-            provider: profile.provider,
-            providerId: profile.providerId,
-            accessToken: null,
-          },
-        });
+        try {
+          await this.prisma.oAuthAccount.create({
+            data: {
+              userId: matchedUser.id,
+              provider: profile.provider,
+              providerId: profile.providerId,
+              accessToken: null,
+            },
+          });
+        } catch (err) {
+          if ((err as Prisma.PrismaClientKnownRequestError).code !== 'P2002') throw err;
+          this.logger.log(`OAuth account already linked to user ${matchedUser.id}, continuing`);
+        }
         return this.issueTokensForUser(matchedUser, userAgent, ipAddress);
       }
 
       this.logger.log(`Creating new user for OAuth ${profile.provider} email=${profile.email}`);
-      const user = await this.prisma.user.create({
-        data: {
-          email: profile.email,
-          emailVerified: true,
-          profile: {
-            create: {
-              displayName: profile.name,
-              avatarUrl: profile.avatarUrl,
+      try {
+        const user = await this.prisma.user.create({
+          data: {
+            email: profile.email,
+            emailVerified: true,
+            profile: {
+              create: {
+                displayName: profile.name,
+                avatarUrl: profile.avatarUrl,
+              },
+            },
+            oauthAccounts: {
+              create: {
+                provider: profile.provider,
+                providerId: profile.providerId,
+              },
             },
           },
-          oauthAccounts: {
-            create: {
+        });
+
+        return this.issueTokensForUser(user, userAgent, ipAddress);
+      } catch (err) {
+        if ((err as Prisma.PrismaClientKnownRequestError).code !== 'P2002') throw err;
+
+        this.logger.log(`Concurrent OAuth signup detected for ${profile.email}, recovering`);
+        const existingUser = await this.prisma.user.findUnique({ where: { email: profile.email } });
+        if (!existingUser) throw err;
+
+        try {
+          await this.prisma.oAuthAccount.create({
+            data: {
+              userId: existingUser.id,
               provider: profile.provider,
               providerId: profile.providerId,
+              accessToken: null,
             },
-          },
-        },
-      });
+          });
+        } catch (linkErr) {
+          if ((linkErr as Prisma.PrismaClientKnownRequestError).code !== 'P2002') throw linkErr;
+        }
 
-      return this.issueTokensForUser(user, userAgent, ipAddress);
+        return this.issueTokensForUser(existingUser, userAgent, ipAddress);
+      }
     } catch (err) {
       this.logger.error(`OAuth database operation failed: ${(err as Error).message}`, (err as Error).stack);
       throw err;
