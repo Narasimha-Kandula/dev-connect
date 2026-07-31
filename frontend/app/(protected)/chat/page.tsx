@@ -98,14 +98,23 @@ function ChatInner() {
   const handleAddMemberSearch = useCallback((q: string) => {
     setAddMemberQuery(q);
     if (addMemberTimeoutRef.current) clearTimeout(addMemberTimeoutRef.current);
-    if (q.length < 2) { setAddMemberResults([]); return; }
-    addMemberTimeoutRef.current = setTimeout(() => {
-      if (!token) return;
-      api.get<SearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`, token)
-        .then((users) => {
+    if (!token) return;
+    if (q.length < 2) {
+      api.get<{ hits: SearchResult[]; total: number }>(`/users/search?q=&limit=50`, token)
+        .then((data) => {
           const conv = conversations.find((c) => c.id === convId);
           const already = conv?.members.map((m) => m.userId) ?? [];
-          setAddMemberResults(users.filter((u) => u.id !== userId && !already.includes(u.id)));
+          setAddMemberResults((data?.hits ?? []).filter((u) => u.userId !== userId && !already.includes(u.userId)));
+        })
+        .catch(() => setAddMemberResults([]));
+      return;
+    }
+    addMemberTimeoutRef.current = setTimeout(() => {
+      api.get<{ hits: SearchResult[]; total: number }>(`/users/search?q=${encodeURIComponent(q)}&limit=50`, token)
+        .then((data) => {
+          const conv = conversations.find((c) => c.id === convId);
+          const already = conv?.members.map((m) => m.userId) ?? [];
+          setAddMemberResults((data?.hits ?? []).filter((u) => u.userId !== userId && !already.includes(u.userId)));
         })
         .catch(() => setAddMemberResults([]));
     }, 300);

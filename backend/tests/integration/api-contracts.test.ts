@@ -10,6 +10,7 @@ import { PasswordResetService } from '../../src/modules/auth/password-reset.serv
 import { EmailVerificationService } from '../../src/modules/auth/email-verification.service';
 import { ChatController } from '../../src/modules/chat/chat.controller';
 import { ChatService } from '../../src/modules/chat/chat.service';
+import { ChatGateway } from '../../src/modules/chat/chat.gateway';
 import { InviteController } from '../../src/modules/invite/invite.controller';
 import { InviteService } from '../../src/modules/invite/invite.service';
 import { JwtAuthGuard } from '../../src/common/guards/jwt-auth.guard';
@@ -46,6 +47,12 @@ const mockChatService = {
   addReaction: jest.fn(),
   removeReaction: jest.fn(),
   markRead: jest.fn(),
+  getConversationMembers: jest.fn().mockResolvedValue([]),
+};
+
+const mockChatGateway = {
+  emitToConversation: jest.fn(),
+  emitToUser: jest.fn(),
 };
 
 const mockInviteService = {
@@ -72,6 +79,7 @@ describe('API Contract Tests', () => {
         { provide: PasswordResetService, useValue: mockPasswordResetService },
         { provide: EmailVerificationService, useValue: mockEmailVerificationService },
         { provide: ChatService, useValue: mockChatService },
+        { provide: ChatGateway, useValue: mockChatGateway },
         { provide: InviteService, useValue: mockInviteService },
       ],
     })

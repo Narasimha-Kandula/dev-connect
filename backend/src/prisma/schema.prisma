@@ -405,6 +405,7 @@ model BlockedUser {
 
 model Conversation {
   id          String    @id @default(uuid())
+  name        String?   @map("name")
   matchId     String?   @unique @map("match_id")
   projectId   String?   @map("project_id")
   isGroup     Boolean   @default(false) @map("is_group")

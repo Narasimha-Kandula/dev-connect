@@ -6,7 +6,7 @@ import { Avatar } from '@/lib/avatar';
 import { api } from '@/lib/api';
 import { formatTime, partnerName, partnerUserId, partnerAvatarUrl, lastMsg } from '@/lib/chat-utils';
 import type { Conversation, SearchResult } from '@/lib/chat-types';
-import { MessageSquare, Search, Plus, X, Loader2, Trash2, Users } from 'lucide-react';
+import { MessageSquare, Search, Plus, X, Loader2, Trash2, Users, Check } from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { useChatSetting } from '@/hooks/useChatSettings';
 
@@ -45,24 +45,62 @@ export function ChatConversationList({
   // Group creation
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [groupName, setGroupName] = useState('');
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [selectedMembers, setSelectedMembers] = useState<{ userId: string; displayName: string; avatarUrl?: string | null }[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [addMemberQuery, setAddMemberQuery] = useState('');
   const [addMemberResults, setAddMemberResults] = useState<SearchResult[]>([]);
+  const [groupSearching, setGroupSearching] = useState(false);
+
+  const searchUsers = useCallback(async (q: string): Promise<SearchResult[]> => {
+    if (!token) return [];
+    const data = await api.get<{ hits: SearchResult[]; total: number }>(`/users/search?q=${encodeURIComponent(q)}&limit=50`, token);
+    return data?.hits ?? [];
+  }, [token]);
+
+  // Load all developers for the new-chat search panel when it opens
+  useEffect(() => {
+    if (!showSearch || showCreateGroup) return;
+    setSearching(true);
+    searchUsers('')
+      .then((users) => setSearchResults(users.filter((u) => u.userId !== userId)))
+      .catch(() => setSearchResults([]))
+      .finally(() => setSearching(false));
+  }, [showSearch, showCreateGroup, userId, searchUsers]);
+
+  // Load all developers for the create-group panel when it opens
+  useEffect(() => {
+    if (!showCreateGroup) return;
+    setGroupSearching(true);
+    searchUsers('')
+      .then((users) => {
+        const already = new Set(selectedMembers.map((m) => m.userId));
+        setAddMemberResults(users.filter((u) => u.userId !== userId && !already.has(u.userId)));
+      })
+      .catch(() => setAddMemberResults([]))
+      .finally(() => setGroupSearching(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCreateGroup, userId, searchUsers]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    if (query.length < 2) { setSearchResults([]); setSearching(false); return; }
+    if (query.length < 2) {
+      // fall back to the preloaded developer list
+      setSearching(true);
+      searchUsers('')
+        .then((users) => setSearchResults(users.filter((u) => u.userId !== userId)))
+        .catch(() => setSearchResults([]))
+        .finally(() => setSearching(false));
+      return;
+    }
     setSearching(true);
     searchTimeoutRef.current = setTimeout(() => {
-      if (!token) return;
-      api.get<SearchResult[]>(`/users/search?q=${encodeURIComponent(query)}`, token)
-        .then((users) => setSearchResults(users.filter((u) => u.id !== userId)))
+      searchUsers(query)
+        .then((users) => setSearchResults(users.filter((u) => u.userId !== userId)))
         .catch(() => setSearchResults([]))
         .finally(() => setSearching(false));
     }, 300);
-  }, [token, userId]);
+  }, [searchUsers, userId]);
 
   const whoCanMessage = useChatSetting('whoCanMessage');
 
@@ -90,34 +128,37 @@ export function ChatConversationList({
   const handleCreateGroupSearch = useCallback((q: string) => {
     setAddMemberQuery(q);
     if (!token) return;
-    if (q.length < 2) { setAddMemberResults([]); return; }
-    api.get<SearchResult[]>(`/users/search?q=${encodeURIComponent(q)}`, token)
-      .then((users) => {
-        const already = new Set(selectedMemberIds);
-        setAddMemberResults(users.filter((u) => u.id !== userId && !already.has(u.id)));
-      })
-      .catch(() => setAddMemberResults([]));
-  }, [token, userId, selectedMemberIds]);
+    setGroupSearching(true);
+    const already = new Set(selectedMembers.map((m) => m.userId));
+    searchUsers(q.length >= 2 ? q : '')
+      .then((users) => setAddMemberResults(users.filter((u) => u.userId !== userId && !already.has(u.userId))))
+      .catch(() => setAddMemberResults([]))
+      .finally(() => setGroupSearching(false));
+  }, [token, userId, selectedMembers, searchUsers]);
 
-  const handleCreateGroupMemberSelect = useCallback((uid: string) => {
-    setSelectedMemberIds((prev) => prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]);
+  const handleCreateGroupMemberSelect = useCallback((u: SearchResult) => {
+    setSelectedMembers((prev) => {
+      if (prev.some((m) => m.userId === u.userId)) return prev.filter((m) => m.userId !== u.userId);
+      return [...prev, { userId: u.userId, displayName: u.displayName || 'Developer', avatarUrl: u.avatarUrl }];
+    });
   }, []);
 
   const createGroup = useCallback(async () => {
-    if (!token || !groupName.trim() || selectedMemberIds.length === 0) return;
+    if (!token || selectedMembers.length === 0) return;
     setCreatingGroup(true);
     try {
-      const conv = await api.post<Conversation>('/chat/conversations/group', { name: groupName.trim(), memberIds: selectedMemberIds }, token);
+      const fallbackName = selectedMembers.map((m) => m.displayName).join(', ');
+      const conv = await api.post<Conversation>('/chat/conversations/group', { name: groupName.trim() || fallbackName, memberIds: selectedMembers.map((m) => m.userId) }, token);
       onConversationCreated(conv);
       setShowCreateGroup(false);
       setGroupName('');
-      setSelectedMemberIds([]);
+      setSelectedMembers([]);
       setAddMemberQuery('');
       setAddMemberResults([]);
       router.push(`/chat?conv=${conv.id}`);
     } catch {}
     setCreatingGroup(false);
-  }, [token, groupName, selectedMemberIds, router, onConversationCreated]);
+  }, [token, groupName, selectedMembers, router, onConversationCreated]);
 
   // Close create group panel when search is toggled off
   useEffect(() => { if (!showSearch) { setShowCreateGroup(false); } }, [showSearch]);
@@ -163,18 +204,18 @@ export function ChatConversationList({
           {searching && <div className="flex justify-center py-2"><Loader2 size={14} className="animate-spin text-muted-foreground" /></div>}
           {searchResults.map((u) => (
             <button
-              key={u.id}
-              onClick={() => startChat(u.id)}
+              key={u.userId}
+              onClick={() => startChat(u.userId)}
               className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left"
             >
-              <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? '?'} size="sm" />
+              <Avatar src={u.avatarUrl} name={u.displayName ?? '?'} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-sm">{u.profile?.displayName ?? 'User'}</p>
-                <p className="truncate text-xs text-muted-foreground">{u.profile?.headline ?? 'Developer'}</p>
+                <p className="truncate font-medium text-sm">{u.displayName ?? 'User'}</p>
+                <p className="truncate text-xs text-muted-foreground">{u.headline ?? 'Developer'}</p>
               </div>
             </button>
           ))}
-          {!searching && searchQuery.length >= 2 && searchResults.length === 0 && (
+          {!searching && searchResults.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-2">No users found</p>
           )}
         </div>
@@ -191,8 +232,20 @@ export function ChatConversationList({
               className="flex-1 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
               autoFocus
             />
-            <button onClick={() => { setShowCreateGroup(false); setGroupName(''); setSelectedMemberIds([]); setAddMemberQuery(''); setAddMemberResults([]); }} className="p-1 hover:bg-muted rounded"><X size={14} /></button>
+            <button onClick={() => { setShowCreateGroup(false); setGroupName(''); setSelectedMembers([]); setAddMemberQuery(''); setAddMemberResults([]); }} className="p-1 hover:bg-muted rounded"><X size={14} /></button>
           </div>
+          {selectedMembers.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {selectedMembers.map((m) => (
+                <span key={m.userId} className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary text-[11px] px-2 py-0.5">
+                  {m.displayName}
+                  <button onClick={() => handleCreateGroupMemberSelect({ userId: m.userId, displayName: m.displayName, avatarUrl: m.avatarUrl } as SearchResult)} className="hover:text-primary/70">
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-1 mb-2">
             <input
               value={addMemberQuery}
@@ -201,33 +254,35 @@ export function ChatConversationList({
               className="flex-1 rounded-md border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
+          {groupSearching && <div className="flex justify-center py-2"><Loader2 size={14} className="animate-spin text-muted-foreground" /></div>}
           {addMemberResults.length > 0 && (
             <div className="max-h-40 overflow-y-auto space-y-1 mb-2">
               {addMemberResults.map((u) => (
-                <label key={u.id} className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left cursor-pointer">
+                <label key={u.userId} className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={selectedMemberIds.includes(u.id)}
-                    onChange={() => handleCreateGroupMemberSelect(u.id)}
+                    checked={selectedMembers.some((m) => m.userId === u.userId)}
+                    onChange={() => handleCreateGroupMemberSelect(u)}
                     className="rounded border-input text-primary focus:ring-primary/20"
                   />
-                  <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? '?'} size="xs" />
-                  <span className="truncate flex-1">{u.profile?.displayName ?? 'User'}</span>
+                  <Avatar src={u.avatarUrl} name={u.displayName ?? '?'} size="xs" />
+                  <span className="truncate flex-1">{u.displayName ?? 'User'}</span>
+                  {u.headline && <span className="truncate max-w-24 text-[10px] text-muted-foreground">{u.headline}</span>}
                 </label>
               ))}
             </div>
           )}
-          {addMemberQuery.length >= 2 && addMemberResults.length === 0 && (
+          {!groupSearching && addMemberResults.length === 0 && (
             <p className="text-[11px] text-muted-foreground text-center py-2 mb-2">No users found</p>
           )}
           <div className="flex items-center justify-end gap-2">
-            <p className="text-xs text-muted-foreground">{selectedMemberIds.length} selected</p>
+            <p className="text-xs text-muted-foreground">{selectedMembers.length} selected</p>
             <button
               onClick={createGroup}
-              disabled={creatingGroup || !groupName.trim() || selectedMemberIds.length === 0}
+              disabled={creatingGroup || selectedMembers.length === 0}
               className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
             >
-              {creatingGroup ? <Loader2 size={12} className="animate-spin" /> : <>Create Group</>}
+              {creatingGroup ? <Loader2 size={12} className="animate-spin" /> : <><Check size={12} className="inline mr-1" />Create Group</>}
             </button>
           </div>
         </div>
@@ -274,14 +329,19 @@ export function ChatConversationList({
                   >
                     <div className="relative shrink-0">
                       <Avatar src={partnerAvatarUrl(c, userId)} name={partnerName(c, userId)} size="lg" />
-                      {isOnline && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-card" />}
+                      {!c.isGroup && pUid && onlineUsers.has(pUid) && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-card" />}
+                      {c.isGroup && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-primary border-2 border-card flex items-center justify-center">
+                          <Users size={6} className="text-primary-foreground" />
+                        </span>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
                         <p className="truncate font-medium text-sm">{partnerName(c, userId)}</p>
                         <span className="shrink-0 text-[11px] text-muted-foreground ml-2">{c.messages?.[0]?.createdAt ? formatTime(c.messages[0].createdAt) : ''}</span>
                       </div>
-                      <p className="truncate text-xs text-muted-foreground mt-0.5">{lastMsg(c)}</p>
+                      <p className="truncate text-xs text-muted-foreground mt-0.5">{c.isGroup ? `${c.members.length} members` : lastMsg(c)}</p>
                     </div>
                   </button>
                   {c.id === convId && (

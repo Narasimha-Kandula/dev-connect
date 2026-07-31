@@ -30,8 +30,10 @@ export class CreateConversationDto {
 }
 
 export class CreateGroupDto {
+  @IsOptional()
   @IsString()
-  name!: string;
+  @MaxLength(100)
+  name?: string;
 
   @IsArray()
   @IsUUID('4', { each: true })

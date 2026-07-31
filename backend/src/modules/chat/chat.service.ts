@@ -162,11 +162,12 @@ export class ChatService {
     });
   }
 
-  async createGroup(name: string, creatorId: string, memberIds: string[]) {
+  async createGroup(name: string | undefined, creatorId: string, memberIds: string[]) {
     const allIds = [...new Set([creatorId, ...memberIds])];
     return this.prisma.conversation.create({
       data: {
         isGroup: true,
+        name: name?.trim() || null,
         members: { create: allIds.map((userId) => ({ userId })) },
       },
       include: { members: { include: { user: { include: { profile: true } } } } },

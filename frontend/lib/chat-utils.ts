@@ -37,7 +37,15 @@ export function shouldShowDateSeparator(msgs: { createdAt: string }[], idx: numb
 
 export function partnerName(conv: { isGroup?: boolean; name?: string; members: { userId: string; user: { profile?: { displayName?: string } } }[] }, userId?: string): string {
   if (!userId) return 'Unknown';
-  if (conv.isGroup && conv.name) return conv.name;
+  if (conv.isGroup) {
+    if (conv.name) return conv.name;
+    const others = conv.members
+      .filter((m) => m.userId !== userId)
+      .map((m) => m.user?.profile?.displayName)
+      .filter(Boolean);
+    if (others.length <= 2) return others.join(', ') || 'Group';
+    return `${others.slice(0, 2).join(', ')} +${others.length - 2}`;
+  }
   const other = conv.members.find((m) => m.userId !== userId);
   return other?.user?.profile?.displayName ?? 'User';
 }
@@ -47,7 +55,7 @@ export function partnerUserId(conv: { members: { userId: string }[] }, userId?: 
   return conv.members.find((m) => m.userId !== userId)?.userId;
 }
 
-export function partnerAvatarUrl(conv: { members: { userId: string; user: { profile?: { avatarUrl?: string } } }[] }, userId?: string): string | undefined {
+export function partnerAvatarUrl(conv: { isGroup?: boolean; members: { userId: string; user: { profile?: { avatarUrl?: string } } }[] }, userId?: string): string | undefined {
   if (!userId) return undefined;
   const other = conv.members.find((m) => m.userId !== userId);
   return other?.user?.profile?.avatarUrl;

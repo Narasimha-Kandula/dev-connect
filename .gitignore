@@ -9,3 +9,11 @@ dist/
 *.tsbuildinfo
 .turbo/
 coverage/
+
+# Meilisearch runtime data
+data.ms/
+
+# Generated reports / archives
+e2e-report/
+tests/test-results/
+*.zip

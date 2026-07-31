@@ -9,7 +9,7 @@ describe('ChatService', () => {
   beforeEach(() => {
     mockTx = {
       conversation: {
-        findFirst: jest.fn(),
+        findMany: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
       },
@@ -133,16 +133,29 @@ describe('ChatService', () => {
   describe('createOrGetConversation', () => {
     it('should return existing conversation if one exists', async () => {
       const conv = mockConversation();
-      mockTx.conversation.findFirst.mockResolvedValue(conv);
+      mockTx.conversation.findMany.mockResolvedValue([conv]);
 
       const result = await service.createOrGetConversation('user-1', 'user-2');
 
       expect(result).toEqual(conv);
       expect(mockTx.conversation.create).not.toHaveBeenCalled();
+      expect(mockTx.conversation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isGroup: false,
+            matchId: null,
+            projectId: null,
+            AND: [
+              { members: { some: { userId: 'user-1' } } },
+              { members: { some: { userId: 'user-2' } } },
+            ],
+          }),
+        }),
+      );
     });
 
     it('should create a new conversation when none exists', async () => {
-      mockTx.conversation.findFirst.mockResolvedValue(null);
+      mockTx.conversation.findMany.mockResolvedValue([]);
       mockTx.conversation.create.mockResolvedValue(mockConversation());
 
       const result = await service.createOrGetConversation('user-1', 'user-2');
@@ -160,13 +173,34 @@ describe('ChatService', () => {
 
     it('should double-check inside transaction and return existing', async () => {
       const conv = mockConversation({ id: 'existing-conv' });
-      mockTx.conversation.findFirst.mockResolvedValue(conv);
+      mockTx.conversation.findMany.mockResolvedValue([conv]);
 
       const result = await service.createOrGetConversation('user-1', 'user-2');
 
-      expect(mockTx.conversation.findFirst).toHaveBeenCalledTimes(1);
+      expect(mockTx.conversation.findMany).toHaveBeenCalledTimes(1);
       expect(mockTx.conversation.create).not.toHaveBeenCalled();
       expect(result).toEqual(conv);
+    });
+
+    it('should merge duplicate conversations and delete extras', async () => {
+      const keep = mockConversation({ id: 'keep-conv' });
+      const dup = mockConversation({ id: 'dup-conv' });
+      mockTx.conversation.findMany.mockResolvedValue([keep, dup]);
+      mockTx.message = { updateMany: jest.fn().mockResolvedValue({ count: 1 }) };
+      mockTx.conversationMember = { deleteMany: jest.fn().mockResolvedValue({ count: 1 }) };
+      mockTx.conversation.delete = jest.fn().mockResolvedValue(dup);
+
+      const result = await service.createOrGetConversation('user-1', 'user-2');
+
+      expect(mockTx.message.updateMany).toHaveBeenCalledWith({
+        where: { conversationId: 'dup-conv' },
+        data: { conversationId: 'keep-conv' },
+      });
+      expect(mockTx.conversationMember.deleteMany).toHaveBeenCalledWith({
+        where: { conversationId: 'dup-conv' },
+      });
+      expect(mockTx.conversation.delete).toHaveBeenCalledWith({ where: { id: 'dup-conv' } });
+      expect(result).toEqual(keep);
     });
 
     it('should throw ForbiddenException for self-conversation', async () => {

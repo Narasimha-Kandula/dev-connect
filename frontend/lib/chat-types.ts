@@ -27,5 +27,12 @@ export interface ChatMessage {
 
 export interface SearchResult {
   id: string;
-  profile?: { displayName: string; avatarUrl?: string; headline?: string };
+  userId: string;
+  displayName: string;
+  headline: string | null;
+  avatarUrl: string | null;
+  location?: string | null;
+  experienceLevel?: string | null;
+  reputationScore?: number;
+  skills?: string[];
 }

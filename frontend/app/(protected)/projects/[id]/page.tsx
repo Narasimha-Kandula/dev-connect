@@ -106,10 +106,10 @@ export default function ProjectDetailPage() {
     if (!token || !id || !addMemberEmail.trim()) return;
     setAddingMember(true);
     try {
-      const users = await api.get<{ id: string }[]>(`/users/search?q=${encodeURIComponent(addMemberEmail)}`, token);
-      const target = Array.isArray(users) ? users[0] : null;
+      const data = await api.get<{ hits: { userId: string }[]; total: number }>(`/users/search?q=${encodeURIComponent(addMemberEmail)}`, token);
+      const target = data?.hits?.[0] ?? null;
       if (!target) { toast.error('User not found'); return; }
-      await api.post(`/projects/${id}/members`, { targetUserId: target.id, role: 'CONTRIBUTOR' }, token);
+      await api.post(`/projects/${id}/members`, { targetUserId: target.userId, role: 'CONTRIBUTOR' }, token);
       toast.success('Member added!');
       setShowAddMember(false);
       setAddMemberEmail('');

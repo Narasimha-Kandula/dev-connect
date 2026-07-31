@@ -37,7 +37,7 @@ interface ChatMessageListProps {
   showAddMembers: boolean;
   onToggleAddMembers: () => void;
   addMemberQuery: string;
-  addMemberResults: { id: string; profile?: { displayName: string; avatarUrl?: string } }[];
+  addMemberResults: { id: string; userId: string; displayName: string; avatarUrl?: string | null }[];
   addingMember: boolean;
   onAddMemberSearch: (q: string) => void;
   onAddMember: (memberId: string) => void;
@@ -123,7 +123,9 @@ export function ChatMessageList({
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-semibold">{partnerName(activeConv, userId)}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {activeOtherUserId && onlineUsers.has(activeOtherUserId) ? 'Online' : isConnected ? 'Offline' : 'Connecting...'}
+              {activeConv.isGroup
+                ? `${activeConv.members.length} members`
+                : activeOtherUserId && onlineUsers.has(activeOtherUserId) ? 'Online' : isConnected ? 'Offline' : 'Connecting...'}
             </p>
           </div>
           <button
@@ -157,17 +159,20 @@ export function ChatMessageList({
                   <div className="max-h-40 overflow-y-auto space-y-1">
                     {addMemberResults.map((u) => (
                       <button
-                        key={u.id}
-                        onClick={() => onAddMember(u.id)}
+                        key={u.userId}
+                        onClick={() => onAddMember(u.userId)}
                         disabled={addingMember}
                         className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left disabled:opacity-50"
                       >
-                        <Avatar src={u.profile?.avatarUrl} name={u.profile?.displayName ?? '?'} size="xs" />
-                        <span className="truncate flex-1">{u.profile?.displayName ?? 'User'}</span>
+                        <Avatar src={u.avatarUrl} name={u.displayName ?? '?'} size="xs" />
+                        <span className="truncate flex-1">{u.displayName ?? 'User'}</span>
                         <Plus size={12} className="shrink-0 text-muted-foreground" />
                       </button>
                     ))}
                   </div>
+                )}
+                {!addMemberQuery && addMemberResults.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground text-center py-2">Loading developers…</p>
                 )}
                 {addMemberQuery.length >= 2 && addMemberResults.length === 0 && (
                   <p className="text-[11px] text-muted-foreground text-center py-2">No users found</p>
