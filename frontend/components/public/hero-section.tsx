@@ -31,7 +31,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="mx-auto max-w-4xl text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl"
+          className="mx-auto max-w-4xl text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl"
         >
           Find Your Next{' '}
           <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
@@ -46,7 +46,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl"
+          className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg lg:text-xl"
         >
           Move beyond job boards. Connect, collaborate, and ship products with
           AI-vetted developers in real-time.
@@ -56,17 +56,17 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4"
         >
           <Link
             href="/signup"
-            className="gradient-brand inline-flex items-center gap-2 rounded-lg px-6 py-3 text-base font-semibold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
+            className="gradient-brand inline-flex w-full items-center justify-center gap-2 rounded-lg px-6 py-3 text-base font-semibold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg sm:w-auto"
           >
             Start Building Free <ArrowRight size={18} />
           </Link>
           <Link
             href="/features"
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-base font-semibold text-foreground transition-all hover:bg-muted/30 hover:border-primary/30"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-6 py-3 text-base font-semibold text-foreground transition-all hover:bg-muted/30 hover:border-primary/30 sm:w-auto"
           >
             Explore Features
           </Link>

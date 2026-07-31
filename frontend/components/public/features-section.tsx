@@ -11,10 +11,9 @@ export function FeaturesSection() {
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-80px' }}
-        transition={{ duration: 0.5 }}
-        className="mx-auto mb-12 max-w-2xl text-center"
-      >
-        <h2 className="text-3xl font-bold tracking-tight">
+        transition={{ duration: 0.5 }}className="mx-auto mb-12 max-w-2xl text-center"
+        >
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Built for Developer Partnerships
         </h2>
         <p className="mt-3 text-muted-foreground">
@@ -22,7 +21,7 @@ export function FeaturesSection() {
           collaboration between technical co-founders.
         </p>
       </motion.div>
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <FeatureCard
           icon={Sparkles}
           title="AI-Driven Matching"

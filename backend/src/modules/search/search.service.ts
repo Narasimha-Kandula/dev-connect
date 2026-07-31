@@ -64,7 +64,7 @@ export class SearchService implements OnModuleInit {
       }
 
       // @ts-expect-error Dynamic import lacks types
-      const { MeiliSearch } = await import('meilisearch');
+      const { Meilisearch: MeiliSearch } = await import('meilisearch');
       this.meiliClient = new MeiliSearch({ host, apiKey });
       this.available = true;
 

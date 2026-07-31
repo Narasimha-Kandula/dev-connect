@@ -5,11 +5,11 @@ import { ArrowRight, Target, Eye } from 'lucide-react';
 import { PageHero } from '@/components/public/page-hero';
 
 export const metadata: Metadata = {
-  title: 'About — DevConnect',
+  title: 'About',
   description:
     'Built for developers, by developers. Learn about our mission to eliminate the friction between developer intent and action.',
   openGraph: {
-    title: 'About — DevConnect',
+    title: 'About',
     description:
       'Built for developers, by developers — mission, team, and milestones.',
   },

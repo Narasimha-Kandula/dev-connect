@@ -14,18 +14,22 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
       useFactory: (config: ConfigService) => {
         const logger = new Logger('RedisModule');
         const url = config.get<string>('REDIS_URL');
-        const host = config.get('redis.host');
-        const port = config.get('redis.port');
-        const password = config.get('redis.password');
+        const host = config.get('app.redis.host');
+        const port = config.get('app.redis.port');
+        const password = config.get('app.redis.password');
 
         if (!url && !host) {
           logger.warn('Redis not configured — running without cache');
           return null;
         }
 
-        const opts: any = url
-          ? { url, maxRetriesPerRequest: 2, retryStrategy: (times: number) => (times > 3 ? null : Math.min(times * 200, 2000)) }
-          : { host, port, password, maxRetriesPerRequest: 2, retryStrategy: (times: number) => (times > 3 ? null : Math.min(times * 200, 2000)) };
+        const retryStrategy = (times: number) => (times > 3 ? null : Math.min(times * 200, 2000));
+
+        // Prefer explicit host/port/password — ioredis does not honor the
+        // password embedded in the `url` option, which causes NOAUTH errors.
+        const opts: any = host
+          ? { host, port, password: password || undefined, maxRetriesPerRequest: 2, retryStrategy }
+          : { url, maxRetriesPerRequest: 2, retryStrategy };
 
         if (url?.startsWith('rediss://')) {
           opts.tls = { rejectUnauthorized: false };

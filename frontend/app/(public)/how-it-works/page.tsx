@@ -4,11 +4,11 @@ import { ArrowRight, UserPlus, Compass, MessageCircle } from 'lucide-react';
 import { PageHero } from '@/components/public/page-hero';
 
 export const metadata: Metadata = {
-  title: 'How It Works — DevConnect',
+  title: 'How It Works',
   description:
     'From profile to partnership in minutes. Create your developer profile, discover AI-matched candidates, and collaborate in real-time.',
   openGraph: {
-    title: 'How It Works — DevConnect',
+    title: 'How It Works',
     description:
       'Create your profile, discover matches, and collaborate in real-time.',
   },

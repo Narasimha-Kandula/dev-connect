@@ -28,10 +28,10 @@ export function StatsBanner() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: i * 0.1 }}
-            className="rounded-xl border border-border bg-card p-6 text-center"
+            className="rounded-xl border border-border bg-card p-4 sm:p-6 text-center"
           >
             <s.icon className="mx-auto mb-3 text-primary" size={28} />
-            <p className="text-3xl font-bold">
+            <p className="text-2xl font-bold sm:text-3xl">
               <AnimatedCounter target={s.value} suffix={s.suffix} duration={2500} />
             </p>
             <p className="mt-1 text-sm text-muted-foreground">{s.label}</p>

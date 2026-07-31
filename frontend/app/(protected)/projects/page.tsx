@@ -44,21 +44,21 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground">Browse open positions and find your next collaboration.</p>
         </div>
-        <div className="flex gap-2">
-          <input value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)} placeholder="Filter by skill…" className="w-40 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-          <Link href="/projects/create"><Button><Plus size={16} className="mr-1" /> Create Project</Button></Link>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input value={skillFilter} onChange={(e) => setSkillFilter(e.target.value)} placeholder="Filter by skill…" className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring sm:w-40" />
+          <Link href="/projects/create" className="w-full sm:w-auto"><Button className="w-full sm:w-auto"><Plus size={16} className="mr-1" /> Create Project</Button></Link>
         </div>
       </div>
 
       {projects.length === 0 && (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          <CardContent className="px-4 py-8 text-center text-sm text-muted-foreground sm:px-6 sm:py-10">
             No projects yet. Create the first one to attract collaborators.
           </CardContent>
         </Card>
@@ -68,7 +68,7 @@ export default function ProjectsPage() {
         {projects.map((p) => (
           <Link key={p.id} href={`/projects/${p.id}`}>
             <Card className="group h-full transition-shadow hover:shadow-md">
-              <CardContent className="pt-6">
+              <CardContent className="p-4 sm:pt-6">
                 <div className="flex items-start justify-between">
                   <p className="font-semibold">{p.title}</p>
                   <Bookmark size={14} className="mt-1 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />

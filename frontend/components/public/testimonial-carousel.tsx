@@ -97,7 +97,7 @@ export function TestimonialCarousel() {
       >
         <div className="mb-10 flex items-end justify-between">
           <div>
-            <h2 className="text-3xl font-bold">Trusted by Builders Worldwide</h2>
+            <h2 className="text-2xl font-bold sm:text-3xl">Trusted by Builders Worldwide</h2>
             <p className="mt-2 text-muted-foreground">
               Real stories from developers who found their match on DevConnect.
             </p>

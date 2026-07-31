@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { PageHero } from '@/components/public/page-hero';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — DevConnect',
+  title: 'Terms of Service',
   description: 'Terms and conditions for using the DevConnect platform.',
   alternates: { canonical: '/terms' },
   robots: { index: false, follow: true },

@@ -179,26 +179,26 @@ export default function PublicProfilePage() {
                 )}
               </div>
             </div>
-            <div className="mt-4 sm:mt-0 flex flex-wrap gap-2">
+            <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-1.5 sm:gap-2">
               {!isOwnProfile && (
                 <>
-                  <Button variant="secondary" size="sm" onClick={handleMessage}>
+                  <Button variant="secondary" size="sm" onClick={handleMessage} className="min-h-[44px] sm:min-h-0">
                     <MessageCircle size={16} className="mr-1" /> Message
                   </Button>
-                  <Button size="sm" onClick={handleInvite} disabled={inviting || inviteSent}>
+                  <Button size="sm" onClick={handleInvite} disabled={inviting || inviteSent} className="min-h-[44px] sm:min-h-0">
                     <Send size={16} className="mr-1" />
                     {inviteSent ? 'Invited' : inviting ? '...' : 'Invite'}
                   </Button>
-                  <Button size="sm" onClick={handleSwipeLike} disabled={swiping}>
+                  <Button size="sm" onClick={handleSwipeLike} disabled={swiping} className="min-h-[44px] sm:min-h-0">
                     <ThumbsUp size={16} className="mr-1" /> {swiping ? '...' : 'Connect'}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={handleSaveToggle} title={isSaved ? 'Remove bookmark' : 'Bookmark profile'}>
+                  <Button variant="ghost" size="sm" onClick={handleSaveToggle} title={isSaved ? 'Remove bookmark' : 'Bookmark profile'} className="min-h-[44px] sm:min-h-0">
                     {isSaved ? <BookmarkCheck size={16} className="text-primary" /> : <Bookmark size={16} />}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={handleBlockToggle} title={isBlocked ? 'Unblock user' : 'Block user'}>
+                  <Button variant="ghost" size="sm" onClick={handleBlockToggle} title={isBlocked ? 'Unblock user' : 'Block user'} className="min-h-[44px] sm:min-h-0">
                     <Ban size={16} className={isBlocked ? 'text-danger' : ''} />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setShowReportModal(true)} title="Report user">
+                  <Button variant="ghost" size="sm" onClick={() => setShowReportModal(true)} title="Report user" className="min-h-[44px] sm:min-h-0">
                     <Flag size={16} />
                   </Button>
                 </>

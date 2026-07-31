@@ -9,7 +9,7 @@
   --color-card: #ffffff;
   --color-card-foreground: #1a1625;
 
-  --color-muted: #7a7191;
+  --color-muted: #ece7f4;
   --color-muted-foreground: #6b6282;
 
   --color-border: #e2dcec;
@@ -23,8 +23,8 @@
   --color-accent: #d4a04a;
   --color-accent-foreground: #1a1625;
 
-  --color-success: #2d8a4e;
-  --color-warning: #b8860b;
+  --color-success: #248145;
+  --color-warning: #996700;
   --color-warning-foreground: #ffffff;
   --color-danger: #c93a3a;
 
@@ -43,16 +43,16 @@
   --color-card: #221f2e;
   --color-card-foreground: #ede8f5;
 
-  --color-muted: #9e95b5;
+  --color-muted: #3a3550;
   --color-muted-foreground: #9e95b5;
 
   --color-border: #2f2a3d;
   --color-input: #2f2a3d;
-  --color-ring: #7c4dff;
+  --color-ring: #9061ff;
 
-  --color-primary: #7c4dff;
+  --color-primary: #9061ff;
   --color-primary-foreground: #ffffff;
-  --color-primary-hover: #9b6fff;
+  --color-primary-hover: #a87dff;
 
   --color-accent: #e8b84a;
   --color-accent-foreground: #1a1625;
@@ -107,6 +107,25 @@ body {
 ::selection {
   background: var(--color-primary);
   color: var(--color-primary-foreground);
+}
+
+/* ─── Focus indicators (WCAG 2.2) ─── */
+
+/* Remove default focus for mouse clicks but keep for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Ensure interactive elements have consistent focus styles */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius, 0.75rem);
 }
 
 .gradient-brand {

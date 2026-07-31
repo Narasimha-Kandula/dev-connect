@@ -637,7 +637,6 @@ model FraudFlag {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
-  @@unique([userId])
   @@index([userId])
   @@index([riskScore])
   @@index([isActive])

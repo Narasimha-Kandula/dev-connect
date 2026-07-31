@@ -38,8 +38,8 @@ export default function CreateProjectPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-10">
-      <button onClick={() => router.back()} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-10">
+      <button onClick={() => router.back()} className="mb-4 inline-flex min-h-[44px] items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         &larr; Back
       </button>
       <Card>
@@ -48,7 +48,7 @@ export default function CreateProjectPage() {
           <p className="text-sm text-muted-foreground">Describe your project and the collaborators you need.</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
               <label className="mb-1 block text-sm font-medium">Project Title</label>
               <input {...register('title')}
@@ -69,7 +69,7 @@ export default function CreateProjectPage() {
               <p className="mt-1 text-xs text-muted-foreground">Comma-separated list.</p>
             </div>
             {error && <p className="text-sm text-danger">{error}</p>}
-            <Button type="submit" disabled={loading}>{loading ? 'Creating…' : 'Create Project'}</Button>
+            <Button type="submit" disabled={loading} className="w-full sm:w-auto">{loading ? 'Creating…' : 'Create Project'}</Button>
           </form>
         </CardContent>
       </Card>

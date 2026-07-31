@@ -6,6 +6,8 @@ const publicRoutes = new Set([
   '/features', '/how-it-works', '/about', '/faq',
   '/contact', '/safety', '/privacy', '/terms', '/security',
   '/auth/callback', '/auth/google/callback',
+  '/send-verification', '/verify-email',
+  '/developers',
 ]);
 
 const authRoutes = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
@@ -17,6 +19,7 @@ export function middleware(request: NextRequest) {
     ?? '';
 
   const isPublic = publicRoutes.has(pathname)
+    || pathname.startsWith('/developers')
     || pathname.startsWith('/_next')
     || pathname.startsWith('/api')
     || pathname.startsWith('/favicon')

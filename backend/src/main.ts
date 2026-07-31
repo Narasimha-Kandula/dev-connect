@@ -35,7 +35,11 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule, { cors: false });
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
   app.enableCors({

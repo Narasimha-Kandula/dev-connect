@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { PageHero } from '@/components/public/page-hero';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — DevConnect',
+  title: 'Privacy Policy',
   description:
     'How DevConnect collects, uses, and protects your personal data. Your privacy matters.',
   alternates: { canonical: '/privacy' },

@@ -54,8 +54,8 @@ export function ProfileCard({
         )}
         {showSkills && user.skills && user.skills.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
-            {user.skills.slice(0, maxSkills).map((s) => (
-              <span key={s.name} className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-foreground/80">{s.name}</span>
+            {user.skills.slice(0, maxSkills).map((s, i) => (
+              <span key={`${s.name}-${i}`} className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-foreground/80">{s.name}</span>
             ))}
             {user.skills.length > maxSkills && (
               <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">+{user.skills.length - maxSkills}</span>
@@ -75,8 +75,8 @@ export function SkillsList({ skills, max = 6, size = 'sm' }: { skills: { name: s
   if (!skills.length) return null;
   return (
     <div className="flex flex-wrap gap-1.5">
-      {skills.slice(0, max).map((s) => (
-        <span key={s.name} className={`rounded-full bg-muted/60 px-2.5 py-1 font-medium text-foreground/80 ${size === 'xs' ? 'text-[10px]' : 'text-xs'}`}>{s.name}</span>
+      {skills.slice(0, max).map((s, i) => (
+        <span key={`${s.name}-${i}`} className={`rounded-full bg-muted/60 px-2.5 py-1 font-medium text-foreground/80 ${size === 'xs' ? 'text-[10px]' : 'text-xs'}`}>{s.name}</span>
       ))}
       {skills.length > max && (
         <span className={`rounded-full bg-muted/60 px-2.5 py-1 font-medium text-muted-foreground ${size === 'xs' ? 'text-[10px]' : 'text-xs'}`}>+{skills.length - max}</span>

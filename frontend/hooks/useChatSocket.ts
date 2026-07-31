@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { getQueue, addToQueue, removeFromQueue, incrementRetry, isOnline } from '@/lib/message-queue';
+import { useChatSetting } from '@/hooks/useChatSettings';
 
 export interface Message {
   id: string;
@@ -78,6 +79,7 @@ export function useChatSocket(conversationId?: string) {
   const messagesLoadedRef = useRef(false);
   const currentConvRef = useRef<string | undefined>(undefined);
   const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const recentMessageIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!token || !userId) return;
@@ -101,6 +103,15 @@ export function useChatSocket(conversationId?: string) {
       if (conversationId && msg.conversationId !== conversationId) {
         console.log('⏭️ IGNORED — conversationId mismatch');
         return;
+      }
+      if (recentMessageIdsRef.current.has(msg.id)) {
+        console.log('⏭️ IGNORED — duplicate message:', msg.id);
+        return;
+      }
+      recentMessageIdsRef.current.add(msg.id);
+      if (recentMessageIdsRef.current.size > 100) {
+        const first = recentMessageIdsRef.current.values().next().value;
+        if (first) recentMessageIdsRef.current.delete(first);
       }
       setMessages((prev) => {
         const tempMatch = msg.tempId ? prev.findIndex((m) => m.id === msg.tempId) : -1;
@@ -340,14 +351,16 @@ export function useChatSocket(conversationId?: string) {
     [token, userId],
   );
 
+  const readReceipts = useChatSetting('readReceipts');
+
   const markConversationRead = useCallback(
     () => {
-      if (!token || !userId || !conversationId) return;
+      if (!readReceipts || !token || !userId || !conversationId) return;
       const socket = getSocket(token, userId);
       if (!socket.connected) return;
       socket.emit('conversation:read', conversationId);
     },
-    [token, userId, conversationId],
+    [readReceipts, token, userId, conversationId],
   );
 
   const deleteMessage = useCallback(

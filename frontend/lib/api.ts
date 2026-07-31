@@ -67,17 +67,27 @@ async function request<T>(
   path: string,
   token?: string,
   body?: unknown,
+  retryOnNetworkError = true,
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const authToken = token ?? getStoredToken();
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (err) {
+    if (retryOnNetworkError) {
+      await new Promise((r) => setTimeout(r, 600));
+      return request<T>(method, path, token, body, false);
+    }
+    throw err;
+  }
 
   if (res.status === 401 && !path.includes('/auth/')) {
     if (isRefreshing) {

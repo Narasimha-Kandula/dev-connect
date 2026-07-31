@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { MessageCircle, UserPlus, Zap, Trash2, Archive, ExternalLink, Loader2 } from 'lucide-react';
+import { Avatar } from '@/lib/avatar';
 
 interface MatchData {
   id: string;
@@ -83,9 +84,9 @@ export default function MatchesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Your Matches</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Your Matches</h1>
           <p className="text-sm text-muted-foreground">Mutual connections ready to collaborate.</p>
         </div>
         <Link href="/discover"><Button variant="secondary" size="sm"><Zap size={14} className="mr-1" /> Find More</Button></Link>
@@ -107,9 +108,7 @@ export default function MatchesPage() {
             <Card key={m.id}>
               <CardContent className="pt-6">
                 <Link href={`/profile/${p.id}`} className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-bold text-primary">
-                    {p.profile?.displayName?.charAt(0) ?? '?'}
-                  </div>
+                  <Avatar src={null} name={p.profile?.displayName ?? 'User'} size="lg" className="shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold truncate">{p.profile?.displayName ?? 'User'}</p>
@@ -122,21 +121,21 @@ export default function MatchesPage() {
                     <p className="text-sm text-muted-foreground truncate">{p.profile?.headline ?? 'Developer'}</p>
                   </div>
                 </Link>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => openChat(m)}>
+                <div className="mt-4 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <Button size="sm" onClick={() => openChat(m)} className="min-h-[44px] sm:min-h-0">
                     <MessageCircle size={14} className="mr-1" /> Chat
                   </Button>
                   <Link href={`/projects/create?partner=${p.id}`}>
-                    <Button variant="secondary" size="sm"><UserPlus size={14} className="mr-1" /> Project</Button>
+                    <Button variant="secondary" size="sm" className="min-h-[44px] sm:min-h-0"><UserPlus size={14} className="mr-1" /> Project</Button>
                   </Link>
                   <Link href={`/profile/${p.id}`}>
-                    <Button variant="ghost" size="sm"><ExternalLink size={14} /></Button>
+                    <Button variant="ghost" size="sm" title="View Profile" className="min-h-[44px] sm:min-h-0"><ExternalLink size={14} /></Button>
                   </Link>
                   <div className="ml-auto flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleArchive(m.id)} disabled={actionLoading === m.id} title="Archive">
+                    <Button variant="ghost" size="sm" onClick={() => handleArchive(m.id)} disabled={actionLoading === m.id} title="Archive" className="min-h-[44px] sm:min-h-0">
                       <Archive size={14} className="text-muted-foreground" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleUnmatch(m.id)} disabled={actionLoading === m.id} title="Unmatch">
+                    <Button variant="ghost" size="sm" onClick={() => handleUnmatch(m.id)} disabled={actionLoading === m.id} title="Unmatch" className="min-h-[44px] sm:min-h-0">
                       <Trash2 size={14} className="text-danger" />
                     </Button>
                   </div>

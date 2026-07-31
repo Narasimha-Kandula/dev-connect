@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '@/lib/avatar';
 import { useAuth } from '@/hooks/useAuth';
+import { useBreakpoint } from '@/hooks/useMediaQuery';
 
 interface NavItem { href: string; label: string; icon: typeof LayoutDashboard }
 
@@ -40,6 +41,8 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const isTablet = useBreakpoint('tablet');
+  const effectiveCollapsed = isTablet ? true : collapsed;
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard';
@@ -69,7 +72,7 @@ export default function Sidebar() {
     };
   }, [mobileOpen]);
 
-  const desktopWidth = collapsed ? 'lg:w-16' : 'lg:w-60';
+  const desktopWidth = effectiveCollapsed ? 'lg:w-16' : 'lg:w-60';
 
   function NavLink({ item, collapsed: col }: { item: NavItem; collapsed: boolean }) {
     const active = isActive(item.href);
@@ -82,6 +85,7 @@ export default function Sidebar() {
             : 'text-muted-foreground hover:bg-muted/20 hover:text-foreground'
         } ${col ? 'justify-center px-0' : ''}`}
         aria-current={active ? 'page' : undefined}
+        title={col ? item.label : undefined}
       >
         <item.icon size={18} className="shrink-0" />
         {!col && <span>{item.label}</span>}
@@ -90,9 +94,9 @@ export default function Sidebar() {
   }
 
   const sidebarContent = (
-    <div className={`flex h-full flex-col ${collapsed ? 'w-16' : 'w-60'} transition-all duration-200`}>
+    <div className={`flex h-full flex-col ${effectiveCollapsed ? 'w-16' : 'w-60'} transition-all duration-200`}>
       <div className="flex items-center border-b border-border px-3 py-3">
-        {!collapsed && (
+        {!effectiveCollapsed && (
           <span className="flex-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
             Navigation
           </span>
@@ -116,19 +120,19 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="Sidebar navigation">
         {NAV_GROUPS.map((group) => (
           <div key={group.section} className="mb-4">
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/40">
                 {group.section}
               </p>
             )}
             {group.items.map((item) => (
-              <NavLink key={item.href} item={item} collapsed={collapsed} />
+              <NavLink key={item.href} item={item} collapsed={effectiveCollapsed} />
             ))}
           </div>
         ))}
       </nav>
 
-      {!collapsed && (
+      {!effectiveCollapsed && (
         <div className="border-t border-border p-3">
           <Link href="/profile" className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-muted/20 transition-colors" aria-label="View your profile">
             <Avatar src={user?.profile?.avatarUrl} name={user?.profile?.displayName ?? user?.email ?? 'User'} size="sm" />

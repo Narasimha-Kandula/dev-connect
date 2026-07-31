@@ -54,10 +54,10 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
 
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold tracking-tight text-foreground">Developer Profile</h1>
-        <Link href="/profile/edit">
-          <Button className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm">
+        <Link href="/profile/edit" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm">
             <Pencil size={14} className="mr-1.5" />
             Edit Profile
           </Button>
@@ -76,7 +76,7 @@ export default function ProfilePage() {
               {profile.headline || profile.experienceLevel || 'Developer'}
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <span>{profile.location || 'Darsi, Ongole'}</span>
+              <span>{profile.location || 'Not set yet'}</span>
               <span className="text-border/50">|</span>
               <span className="flex items-center gap-1">
                 <Star size={14} className="text-primary" />
@@ -169,11 +169,6 @@ export default function ProfilePage() {
             Skills
           </Button>
         </Link>
-      </div>
-
-      {/* Bottom-left watermark */}
-      <div className="fixed bottom-4 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-full bg-foreground/10 text-xs font-bold text-foreground/30 select-none pointer-events-none">
-        N
       </div>
     </div>
   );

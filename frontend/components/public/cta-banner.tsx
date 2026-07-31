@@ -13,8 +13,8 @@ export function CtaBanner() {
       transition={{ duration: 0.5 }}
       className="mx-auto mb-16 max-w-5xl px-6"
     >
-      <div className="gradient-brand rounded-2xl px-6 py-16 text-center text-white sm:px-12">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+      <div className="gradient-brand rounded-2xl px-4 py-12 text-center text-white sm:px-8 lg:px-12 sm:py-16">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
           Join thousands building the future.
         </h2>
         <p className="mx-auto mt-3 max-w-md text-white/80">
@@ -22,7 +22,7 @@ export function CtaBanner() {
         </p>
         <Link
           href="/signup"
-          className="mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-primary shadow-md transition-all hover:bg-white/90 hover:shadow-lg"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-semibold text-primary shadow-md transition-all hover:bg-white/90 hover:shadow-lg sm:w-auto"
         >
           Start Building Free <ArrowRight size={18} />
         </Link>

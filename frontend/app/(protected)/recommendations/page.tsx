@@ -130,8 +130,8 @@ export default function RecommendationsPage() {
             <Card>
               <CardHeader><CardTitle><Users size={16} className="mr-1 inline" /> Recommended Matches</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                {insights.matchSuggestions.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+                {insights.matchSuggestions.map((m, idx) => (
+                  <div key={m.id ?? `match-${idx}`} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
                     <Avatar src={m.avatarUrl} name={m.displayName} size="md" />
                     <div className="flex-1 min-w-0">
                       <Link href={`/profile/${m.userId}`} className="text-sm font-semibold hover:text-primary transition-colors">
@@ -154,8 +154,8 @@ export default function RecommendationsPage() {
             <Card>
               <CardHeader><CardTitle><Briefcase size={16} className="mr-1 inline" /> Projects Matching Your Skills</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                {projects.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+                {projects.map((p, idx) => (
+                  <div key={p.id ?? `project-${idx}`} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
                     <div className="flex-1 min-w-0">
                       <Link href={`/projects/${p.id}`} className="text-sm font-semibold hover:text-primary transition-colors">
                         {p.title}

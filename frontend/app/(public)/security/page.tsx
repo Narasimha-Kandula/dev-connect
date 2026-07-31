@@ -4,7 +4,7 @@ import { Shield, Lock, Key, Eye, Server, UserCheck } from 'lucide-react';
 import { PageHero } from '@/components/public/page-hero';
 
 export const metadata: Metadata = {
-  title: 'Security — DevConnect',
+  title: 'Security',
   description:
     'Enterprise-grade security: TLS 1.3 encryption, AES-256 at rest, RBAC, SSO-ready auth, and regular third-party audits.',
   alternates: { canonical: '/security' },
